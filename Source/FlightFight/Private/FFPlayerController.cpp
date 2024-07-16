@@ -3,3 +3,8 @@
 
 #include "FFPlayerController.h"
 
+void AFFPlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+
+}

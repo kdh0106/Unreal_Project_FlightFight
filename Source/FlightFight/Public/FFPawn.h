@@ -39,22 +39,28 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = Camera)
 	UCameraComponent* Camera;
 
-	float CurrentForwardSpeed;
-	float CurrentRightSpeed;
-	float TargetForwardSpeed;
-	float TargetRightSpeed;
+	//float CurrentForwardSpeed;
+	//float CurrentRightSpeed;
+	//float TargetForwardSpeed;
+	//float TargetRightSpeed;
+	float MinFlyingSpeed = 3000.0f;
 
-	float MaxSpeed;
-	float MinSpeed;
+	//float MaxSpeed;
+	//float MinSpeed;
 
-	UPROPERTY(EditAnywhere)
-	float Acceleration;
+	//UPROPERTY(EditAnywhere)
+	//float Acceleration;
+	
+	//UPROPERTY(EditAnywhere)
+	//float Deceleration;
 
-	UPROPERTY(EditAnywhere)
-	float Deceleration;
+	UPROPERTY(VisibleAnywhere)
+	float CurrentSpeed;
 
 private:
 	void MoveForward(float NewAxisValue);
-	void MoveRight(float NewAxisValue);
+	void Turn(float NewAxisValue);
+	void LookUp(float NewAxisValue);
+	
 
 };

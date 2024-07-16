@@ -26,15 +26,28 @@ AFFPawn::AFFPawn()
 	{
 		Mesh->SetSkeletalMesh(FF_Flight.Object);
 	}
+	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	Mesh->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
+	Mesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
 
-	CurrentForwardSpeed = 0.0f;
-	CurrentRightSpeed = 0.0f;
-	TargetForwardSpeed = 0.0f;
-	TargetRightSpeed = 0.0f;
-	MaxSpeed = 1000.0f;
-	MinSpeed = 0.0f;
-	Acceleration = 2.0f;
-	Deceleration = 2.0f;
+	//CurrentForwardSpeed = 0.0f;
+	//CurrentRightSpeed = 0.0f;
+	//TargetForwardSpeed = 0.0f;
+	//TargetRightSpeed = 0.0f;
+	//MaxSpeed = 1000.0f;
+	//MinSpeed = 0.0f;
+	//Acceleration = 2.0f;
+	//Deceleration = 2.0f;
+
+	Movement->MaxSpeed = 6000.0f;
+	Movement->Acceleration = 500.0f;
+	Movement->Deceleration = 50.0f;
+	Movement->TurningBoost = 1.0f;
+		
+	bUseControllerRotationPitch = true;
+	bUseControllerRotationYaw = true;
+	bUseControllerRotationRoll = true;
+
 }
 
 // Called when the game starts or when spawned
@@ -49,11 +62,14 @@ void AFFPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	CurrentForwardSpeed = FMath::FInterpTo(CurrentForwardSpeed, TargetForwardSpeed, DeltaTime, Acceleration);
-	CurrentRightSpeed = FMath::FInterpTo(CurrentRightSpeed, TargetRightSpeed, DeltaTime, Acceleration);
+	//CurrentForwardSpeed = FMath::FInterpTo(CurrentForwardSpeed, TargetForwardSpeed, DeltaTime, Acceleration);
+	//CurrentRightSpeed = FMath::FInterpTo(CurrentRightSpeed, TargetRightSpeed, DeltaTime, Acceleration);
 
-	AddMovementInput(GetActorForwardVector(), CurrentForwardSpeed);
-	AddMovementInput(GetActorRightVector(), CurrentRightSpeed);
+	//AddMovementInput(GetActorForwardVector(), CurrentForwardSpeed);
+	//AddMovementInput(GetActorRightVector(), CurrentRightSpeed);
+	//auto Pawn = this;
+	CurrentSpeed = this->GetVelocity().Size();
+	ABLOG(Warning, TEXT("speed : %f"), CurrentSpeed);
 
 }
 
@@ -63,22 +79,34 @@ void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
 	PlayerInputComponent->BindAxis(TEXT("MoveForward"), this, &AFFPawn::MoveForward);
-	PlayerInputComponent->BindAxis(TEXT("MoveRight"), this, &AFFPawn::MoveRight);
+	PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AFFPawn::Turn);
+	PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AFFPawn::LookUp);
 }
 
 void AFFPawn::MoveForward(float NewAxisValue)  
 {
-	TargetForwardSpeed = NewAxisValue * MaxSpeed;
+	//TargetForwardSpeed = NewAxisValue * MaxSpeed;
 	
-	//AddMovementInput(GetActorForwardVector(), ForwardSpeed);
-	ABLOG(Warning, TEXT("forward : %f"), CurrentForwardSpeed);
+	if (Movement)
+	{
+		AddMovementInput(GetActorForwardVector(), NewAxisValue);
+	} 
 }
 
-void AFFPawn::MoveRight(float NewAxisValue)
+void AFFPawn::Turn(float NewAxisValue)
 {
-	TargetRightSpeed = NewAxisValue * MaxSpeed;
-	//AddMovementInput(GetActorRightVector(), RightSpeed);
-	ABLOG(Warning, TEXT("right : %f"), CurrentRightSpeed);
+	//TargetRightSpeed = NewAxisValue * MaxSpeed;
+	AddControllerYawInput(NewAxisValue);
+	ABLOG(Warning, TEXT("turn : %f"), NewAxisValue);
+}
+
+void AFFPawn::LookUp(float NewAxisValue)
+{
+	if (CurrentSpeed >= 4000.0f)
+	{
+		AddControllerPitchInput(NewAxisValue);
+		ABLOG(Warning, TEXT("lookup : %f"), NewAxisValue);
+	}
 }
 
 

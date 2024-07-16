@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "FlightFight.h"
 #include "GameFramework/PlayerController.h"
 #include "FFPlayerController.generated.h"
 
@@ -14,4 +14,6 @@ class FLIGHTFIGHT_API AFFPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 	
+protected:
+	virtual void BeginPlay() override;
 };
