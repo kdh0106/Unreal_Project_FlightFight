@@ -2,12 +2,16 @@
 
 using UnrealBuildTool;
 
+
 public class FlightFight : ModuleRules
 {
 	public FlightFight(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "EnhancedInput" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "Niagara", "HeadMountedDisplay", "EnhancedInput" });
+
+		PrivateDependencyModuleNames.AddRange(new string[] { });
 	}
 }
+

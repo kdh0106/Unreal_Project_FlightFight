@@ -2,6 +2,11 @@
 
 
 #include "FFPawn.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
+
+FName BoosterSocket1(TEXT("rt_thruster_jnt"));
+FName BoosterSocket2(TEXT("lf_thruster_jnt"));
 
 // Sets default values
 AFFPawn::AFFPawn()
@@ -9,44 +14,55 @@ AFFPawn::AFFPawn()
  	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MESH"));
+	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MESH"));  //->GetMesh()로 대체 가능
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SPRINGARM"));
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("CAMERA"));
 	Movement = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("MOVEMENT"));
+	ThrusterEffect_Left = CreateDefaultSubobject<UNiagaraComponent>(TEXT("THRUSTEREFFECT_LEFT"));
+	ThrusterEffect_Right = CreateDefaultSubobject<UNiagaraComponent>(TEXT("THRUSTEREFFECT_RIGHT"));
+
+	//Mesh->SetCollisionProfileName(TEXT("Pawn"));
+
+
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem>THRUSTER_EFFECT_LEFT(TEXT("/Game/Book/FX/NS_West_Fighter_Typhoon_Jet.NS_West_Fighter_Typhoon_Jet"));
+	if (THRUSTER_EFFECT_LEFT.Succeeded())
+	{
+		ThrusterEffect_Left->SetAsset(THRUSTER_EFFECT_LEFT.Object);
+	}
+
+	static ConstructorHelpers::FObjectFinder<UNiagaraSystem>THRUSTER_EFFECT_RIGHT(TEXT("/Game/Book/FX/NS_West_Fighter_Typhoon_Jet.NS_West_Fighter_Typhoon_Jet"));
+	if (THRUSTER_EFFECT_RIGHT.Succeeded())
+	{
+		ThrusterEffect_Right->SetAsset(THRUSTER_EFFECT_RIGHT.Object);
+	}
 
 	RootComponent = Mesh; 
 	SpringArm->SetupAttachment(RootComponent);
 	Camera->SetupAttachment(SpringArm);
 
-	SpringArm->TargetArmLength = 800.0f;
+	SpringArm->TargetArmLength = 1200.0f; 
 	SpringArm->SetRelativeLocationAndRotation(FVector(-1000.0f, 0.0f, 500.0f), FRotator(-15.0f, 0.0f, 0.0f));
 
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> FF_Flight(TEXT("/Game/Book/SkeletalMesh/SK_West_Fighter_Typhoon.SK_West_Fighter_Typhoon"));
 	if (FF_Flight.Succeeded())
 	{
 		Mesh->SetSkeletalMesh(FF_Flight.Object);
-	}
-	Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	Mesh->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
-	Mesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+	}   
+	//Mesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	//Mesh->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
+	//Mesh->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Block);
+	//Mesh->SetGenerateOverlapEvents(true);
 
-	//CurrentForwardSpeed = 0.0f;
-	//CurrentRightSpeed = 0.0f;
-	//TargetForwardSpeed = 0.0f;
-	//TargetRightSpeed = 0.0f;
-	//MaxSpeed = 1000.0f;
-	//MinSpeed = 0.0f;
-	//Acceleration = 2.0f;
-	//Deceleration = 2.0f;
-
-	Movement->MaxSpeed = 6000.0f;
+	Movement->MaxSpeed = 6000.0f; //FloatingPawnMovement에 이미 있는 속성들이라 새로 만들어줄 필요 없음. 
 	Movement->Acceleration = 500.0f;
 	Movement->Deceleration = 50.0f;
 	Movement->TurningBoost = 1.0f;
-		
-	bUseControllerRotationPitch = true;
+		 
+	bUseControllerRotationPitch = true;  //이걸 해주지 않으면 회전이 돌아가지 않음.
 	bUseControllerRotationYaw = true;
 	bUseControllerRotationRoll = true;
+
+	//Mesh->OnComponentBeginOverlap.AddDynamic(this, &AFFPawn::OnOverlapBegin);
 
 }
 
@@ -54,23 +70,34 @@ AFFPawn::AFFPawn()
 void AFFPawn::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	SetActorLocation(FVector(0.0f, 0.0f, 0.0f));
+
+	Mesh->SetCollisionProfileName(TEXT("Pawn"));
+	Mesh->OnComponentBeginOverlap.AddDynamic(this, &AFFPawn::OnOverlapBegin);
+
+	if (ThrusterEffect_Left && ThrusterEffect_Right)
+	{
+		ThrusterEffect_Left->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, BoosterSocket1);
+		ThrusterEffect_Right->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, BoosterSocket2);
+	}
 }
 
 // Called every frame
 void AFFPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	//CurrentForwardSpeed = FMath::FInterpTo(CurrentForwardSpeed, TargetForwardSpeed, DeltaTime, Acceleration);
-	//CurrentRightSpeed = FMath::FInterpTo(CurrentRightSpeed, TargetRightSpeed, DeltaTime, Acceleration);
-
-	//AddMovementInput(GetActorForwardVector(), CurrentForwardSpeed);
-	//AddMovementInput(GetActorRightVector(), CurrentRightSpeed);
-	//auto Pawn = this;
 	CurrentSpeed = this->GetVelocity().Size();
-	ABLOG(Warning, TEXT("speed : %f"), CurrentSpeed);
+	  
+}
 
+FVector AFFPawn::CalculateCurrentVelocity() const
+{
+	if (Movement)
+	{
+		return Movement->Velocity;
+	}
+	return FVector::ZeroVector;
 }
 
 // Called to bind functionality to input
@@ -90,14 +117,27 @@ void AFFPawn::MoveForward(float NewAxisValue)
 	if (Movement)
 	{
 		AddMovementInput(GetActorForwardVector(), NewAxisValue);
-	} 
+		if (NewAxisValue > 0.0f)
+		{
+
+			//ThrusterEffect_Left->Activate();
+			//ThrusterEffect_Right->Activate();
+			ABLOG(Warning, TEXT("WOW!!!!!!!!!!On"));
+		}
+		else
+		{
+			//ThrusterEffect_Left->Deactivate();
+			//ThrusterEffect_Right->Deactivate();
+			ABLOG(Warning, TEXT("WOW!!!!!!!!!!Off"));
+		}
+	}
 }
 
 void AFFPawn::Turn(float NewAxisValue)
 {
 	//TargetRightSpeed = NewAxisValue * MaxSpeed;
 	AddControllerYawInput(NewAxisValue);
-	ABLOG(Warning, TEXT("turn : %f"), NewAxisValue);
+	//ABLOG(Warning, TEXT("turn : %f"), NewAxisValue);
 }
 
 void AFFPawn::LookUp(float NewAxisValue)
@@ -105,7 +145,15 @@ void AFFPawn::LookUp(float NewAxisValue)
 	if (CurrentSpeed >= 4000.0f)
 	{
 		AddControllerPitchInput(NewAxisValue);
-		ABLOG(Warning, TEXT("lookup : %f"), NewAxisValue);
+		//ABLOG(Warning, TEXT("lookup : %f"), NewAxisValue);
+	}
+}
+
+void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	if (OtherActor && (OtherActor != this) && OtherComp)
+	{
+		ABLOG(Warning, TEXT("Overlap with Actor %s"), *OtherActor->GetName());
 	}
 }
 
