@@ -5,6 +5,7 @@
 #include "FFGameMode.h"
 #include "FFPawn.h"
 #include "FFPlayerController.h"
+#include "UObject/ConstructorHelpers.h"
 
 AFFGameMode::AFFGameMode()
 {
