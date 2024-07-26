@@ -5,6 +5,8 @@
 
 FName BoosterSocket1(TEXT("rt_thruster_jnt"));
 FName BoosterSocket2(TEXT("lf_thruster_jnt"));
+FName ShootSocket1(TEXT("lf_wheelMain_2_jnt"));
+FName ShootSocket2(TEXT("rt_wheelMain_2_jnt"));
 
 // Sets default values
 AFFPawn::AFFPawn()
@@ -69,6 +71,18 @@ AFFPawn::AFFPawn()
     bUseControllerRotationPitch = true;  //이걸 해주지 않으면 회전이 돌아가지 않음.
     bUseControllerRotationYaw = true;
     bUseControllerRotationRoll = true;
+
+    static ConstructorHelpers::FClassFinder<AActor>BulletBPClass(TEXT("/Game/Book/Bullet/Bullet_Actor.Bullet_Actor_C"));
+    if (BulletBPClass.Class != nullptr)
+    {
+        BulletActorClass = BulletBPClass.Class;
+        ABLOG(Warning, TEXT("Suiii"));
+    }
+
+    ShootSocketLocation_L = Mesh->GetSocketLocation(ShootSocket1);
+    ShootSocketLocation_R = Mesh->GetSocketLocation(ShootSocket2);
+    ShootSocketRotation_L = Mesh->GetSocketRotation(ShootSocket1);
+    ShootSocketRotation_R = Mesh->GetSocketRotation(ShootSocket2);
 }
 
 // Called when the game starts or when spawned
@@ -100,6 +114,7 @@ void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
     PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AFFPawn::Turn);
     PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AFFPawn::LookUp);
     PlayerInputComponent->BindAxis(TEXT("Rolling"), this, &AFFPawn::Rolling);
+    PlayerInputComponent->BindAction(TEXT("Fire"), EInputEvent::IE_Pressed, this, &AFFPawn::Fire);
 }
 
 void AFFPawn::MoveForward(float NewAxisValue)
@@ -138,6 +153,33 @@ void AFFPawn::Rolling(float NewAxisValue)
     AddControllerRollInput(NewAxisValue);
 }
 
+void AFFPawn::Fire()
+{
+    ShootBullet();    //Timer를 넣어줘야하나?? 일단 그냥 넣어보기
+    ABLOG(Warning, TEXT("Shoot!!"));
+}
+
+void AFFPawn::ShootBullet()
+{
+    FHitResult OutHit;
+    ECollisionChannel TraceChannel = ECC_Visibility; // Visibility채널의 의미???
+    FCollisionQueryParams CollisionParams;
+    CollisionParams.AddIgnoredActor(this);  // 자신은 콜리전 반응이 일어나지 않게끔.
+
+    bool bResult = GetWorld()->LineTraceSingleByChannel(
+        OutHit,
+        GetActorLocation(),
+        GetActorLocation() + GetActorForwardVector() * 35000.0f,
+        TraceChannel,
+        CollisionParams
+    );
+
+    if (bResult)
+    {
+        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootSocketRotation_L);
+        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootSocketRotation_R);
+    }
+}
 //void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 //{
 //    if (OtherActor && (OtherActor != this) && OtherComp)

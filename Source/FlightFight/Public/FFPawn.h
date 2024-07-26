@@ -63,10 +63,27 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	float CurrentSpeed;
 
+	UPROPERTY(EditAnywhere, Category = "Spawning")
+	TSubclassOf<AActor> BulletActorClass;
+
+	UPROPERTY(VisibleAnywhere, Category = "Socket")
+	FVector ShootSocketLocation_L;
+
+	UPROPERTY(VisibleAnywhere, Category = "Socket")
+	FVector ShootSocketLocation_R;
+
+	UPROPERTY(VisibleAnywhere, Category = "Socket")
+	FRotator ShootSocketRotation_L;
+
+	UPROPERTY(VisibleAnywhere, Category = "Socket")
+	FRotator ShootSocketRotation_R;
 
 private:
 	void MoveForward(float NewAxisValue);
 	void Turn(float NewAxisValue);
 	void LookUp(float NewAxisValue);
 	void Rolling(float NewAxisValue);
+	
+	void Fire();
+	void ShootBullet();
 };
