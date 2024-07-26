@@ -7,6 +7,7 @@
 #include "GameFramework/FloatingPawnMovement.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "FFPawn.generated.h"
 
 UCLASS()
@@ -59,24 +60,6 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = Collision)
 	UBoxComponent* BoxCollision;
 
-	FVector CalculateCurrentVelocity() const;
-
-
-	//float CurrentForwardSpeed;
-	//float CurrentRightSpeed;
-	//float TargetForwardSpeed;
-	//float TargetRightSpeed;
-	float MinFlyingSpeed = 3000.0f;
-
-	//float MaxSpeed;
-	//float MinSpeed;
-
-	//UPROPERTY(EditAnywhere)
-	//float Acceleration;
-	
-	//UPROPERTY(EditAnywhere)
-	//float Deceleration;
-
 	UPROPERTY(VisibleAnywhere)
 	float CurrentSpeed;
 
@@ -85,5 +68,5 @@ private:
 	void MoveForward(float NewAxisValue);
 	void Turn(float NewAxisValue);
 	void LookUp(float NewAxisValue);
-
+	void Rolling(float NewAxisValue);
 };

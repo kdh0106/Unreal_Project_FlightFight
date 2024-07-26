@@ -12,7 +12,7 @@ AFFPawn::AFFPawn()
     // Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
     PrimaryActorTick.bCanEverTick = true;
 
-    Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MESH"));  //->GetMesh()로 대체 가능
+    Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MESH")); 
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SPRINGARM"));
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("CAMERA"));
     Movement = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("MOVEMENT"));
@@ -34,8 +34,10 @@ AFFPawn::AFFPawn()
 
     RootComponent = BoxCollision;
     Mesh->SetupAttachment(RootComponent);
-    SpringArm->SetupAttachment(RootComponent);
+    SpringArm->SetupAttachment(RootComponent);  
     Camera->SetupAttachment(SpringArm);
+    SpringArm->bUsePawnControlRotation = true;
+
 
     //SetActorLocation(FVector(0.0f, 0.0f, 0.0f));
    // BoxCollision->SetRelativeLocation(FVector(0.0f, 0.0f, 237.5f));
@@ -46,7 +48,7 @@ AFFPawn::AFFPawn()
 
     Mesh->SetRelativeLocation(FVector(0.0f, 0.0f, -250.0f)); 
     SpringArm->TargetArmLength = 2000.0f;
-    SpringArm->SetRelativeLocationAndRotation(FVector(-1000.0f, 0.0f, 500.0f), FRotator(-15.0f, 0.0f, 0.0f));
+    SpringArm->SetRelativeLocationAndRotation(FVector(-1000.0f, 0.0f, 500.0f), FRotator(-20.0f, 0.0f, 0.0f));
 
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> FF_Flight(TEXT("/Game/Book/SkeletalMesh/SK_West_Fighter_Typhoon.SK_West_Fighter_Typhoon"));
     if (FF_Flight.Succeeded())
@@ -88,7 +90,6 @@ void AFFPawn::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
     CurrentSpeed = this->GetVelocity().Size();
-
 }
 
 void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -98,36 +99,30 @@ void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
     PlayerInputComponent->BindAxis(TEXT("MoveForward"), this, &AFFPawn::MoveForward);
     PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AFFPawn::Turn);
     PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AFFPawn::LookUp);
+    PlayerInputComponent->BindAxis(TEXT("Rolling"), this, &AFFPawn::Rolling);
 }
 
 void AFFPawn::MoveForward(float NewAxisValue)
 {
-    //TargetForwardSpeed = NewAxisValue * MaxSpeed;
-
     if (Movement)
     {
         AddMovementInput(GetActorForwardVector(), NewAxisValue);
         if (NewAxisValue > 0.0f)
         {
-
-            //ThrusterEffect_Left->Activate();
-            //ThrusterEffect_Right->Activate();
-           // ABLOG(Warning, TEXT("WOW!!!!!!!!!!On"));
+            ThrusterEffect_Left->Activate();
+            ThrusterEffect_Right->Activate();
         }
         else
         {
-            //ThrusterEffect_Left->Deactivate();
-            //ThrusterEffect_Right->Deactivate();
-            //ABLOG(Warning, TEXT("WOW!!!!!!!!!!Off"));
+            ThrusterEffect_Left->Deactivate();
+            ThrusterEffect_Right->Deactivate();
         }
     }
 }
 
 void AFFPawn::Turn(float NewAxisValue)
 {
-    //TargetRightSpeed = NewAxisValue * MaxSpeed;
     AddControllerYawInput(NewAxisValue);
-    //ABLOG(Warning, TEXT("turn : %f"), NewAxisValue);
 }
 
 void AFFPawn::LookUp(float NewAxisValue)
@@ -135,8 +130,12 @@ void AFFPawn::LookUp(float NewAxisValue)
     if (CurrentSpeed >= 4000.0f)
     {
         AddControllerPitchInput(NewAxisValue);
-        //ABLOG(Warning, TEXT("lookup : %f"), NewAxisValue);
     }
+}
+
+void AFFPawn::Rolling(float NewAxisValue)
+{
+    AddControllerRollInput(NewAxisValue);
 }
 
 //void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
@@ -146,4 +145,3 @@ void AFFPawn::LookUp(float NewAxisValue)
 //        ABLOG(Warning, TEXT("Overlap with Actor %s"), *OtherActor->GetName());
 //    }
 //}
-
