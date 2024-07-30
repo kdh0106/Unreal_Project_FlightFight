@@ -78,11 +78,6 @@ AFFPawn::AFFPawn()
         BulletActorClass = BulletBPClass.Class;
         ABLOG(Warning, TEXT("Suiii"));
     }
-
-    ShootSocketLocation_L = Mesh->GetSocketLocation(ShootSocket1);
-    ShootSocketLocation_R = Mesh->GetSocketLocation(ShootSocket2);
-    ShootSocketRotation_L = Mesh->GetSocketRotation(ShootSocket1);
-    ShootSocketRotation_R = Mesh->GetSocketRotation(ShootSocket2);
 }
 
 // Called when the game starts or when spawned
@@ -104,6 +99,11 @@ void AFFPawn::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
     CurrentSpeed = this->GetVelocity().Size();
+
+    ShootSocketLocation_L = Mesh->GetSocketLocation(ShootSocket1);
+    ShootSocketLocation_R = Mesh->GetSocketLocation(ShootSocket2);
+    ShootSocketRotation_L = Mesh->GetSocketRotation(ShootSocket1);
+    ShootSocketRotation_R = Mesh->GetSocketRotation(ShootSocket2);
 }
 
 void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -161,20 +161,28 @@ void AFFPawn::Fire()
 
 void AFFPawn::ShootBullet()
 {
-    FHitResult OutHit;
+    FHitResult OutHit_L, OutHit_R;
     ECollisionChannel TraceChannel = ECC_Visibility; // Visibility채널의 의미??? 
     FCollisionQueryParams CollisionParams;
     CollisionParams.AddIgnoredActor(this);  // 자신은 콜리전 반응이 일어나지 않게끔.
 
-    bool bResult = GetWorld()->LineTraceSingleByChannel(
-        OutHit,
-        GetActorLocation(),
-        GetActorLocation() + GetActorForwardVector() * 35000.0f,
+    bool bResult_L = GetWorld()->LineTraceSingleByChannel(
+        OutHit_L,
+        ShootSocketLocation_L,
+        ShootSocketLocation_L + GetActorForwardVector() * 35000.0f,
         TraceChannel,
         CollisionParams
     );
 
-    DrawDebugLine(
+    bool bResult_R = GetWorld()->LineTraceSingleByChannel(
+        OutHit_R,
+        ShootSocketLocation_R,
+        ShootSocketLocation_R + GetActorForwardVector() * 35000.0f,
+        TraceChannel,
+        CollisionParams
+    );
+
+    /*DrawDebugLine(
         GetWorld(),
         GetActorLocation(),
         GetActorLocation() + GetActorForwardVector() * 35000.0f,
@@ -183,20 +191,54 @@ void AFFPawn::ShootBullet()
         2.0f,
         0,
         1.0f
-    );
+    );*/
 
-    if (bResult)
+    if (bResult_L && bResult_R)
     {
-        FVector ImpactPoint = OutHit.ImpactPoint;
-        ABLOG(Warning, TEXT("Impact Location : %s"), *ImpactPoint.ToString());
-        FString HitComp = OutHit.GetComponent()->GetName();
-        ABLOG(Warning, TEXT("Hit component : %s"), *HitComp);
-        FRotator ShootRot_R = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_R, ImpactPoint);
-        FRotator ShootRot_L = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_L, ImpactPoint);
+        FVector ImpactPoint_L = OutHit_L.ImpactPoint;
+        FVector ImpactPoint_R = OutHit_R.ImpactPoint;
+
+        /*FString HitComp = OutHit_L.GetComponent()->GetName();
+        ABLOG(Warning, TEXT("Hit component : %s"), *HitComp);*/
+
+        FRotator ShootRot_R = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_R, ImpactPoint_R);
+        FRotator ShootRot_L = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_L, ImpactPoint_L);
+
+        FActorSpawnParameters SpawnParams;
+        AActor* SpawnedBullet_L = GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootRot_L);
+        AActor* SpawnedBullet_R = GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootRot_R);
+        
+        /*FTimerHandle BulletTimerHandle_L;
+        GetWorld()->GetTimerManager().SetTimer(BulletTimerHandle_L, [SpawnedBullet_L]()
+            {
+                if (IsValid(SpawnedBullet_L))
+                {
+                    SpawnedBullet_L->Destroy();
+                    ABLOG(Warning, TEXT("Destroy!!"));
+                }
+            }, 3.0f, false);
+
+        FTimerHandle BulletTimerHandle_R;
+        GetWorld()->GetTimerManager().SetTimer(BulletTimerHandle_R, [SpawnedBullet_R]()
+            {
+                if (IsValid(SpawnedBullet_R))
+                {
+                    SpawnedBullet_R->Destroy();
+                    ABLOG(Warning, TEXT("Destroy!!"));
+                }
+            }, 3.0f, false);*/
+    }
+    else
+    {
+        FVector TraceEnd_L = OutHit_L.TraceEnd;
+        FVector TraceEnd_R = OutHit_R.TraceEnd;
+
+        FRotator ShootRot_R = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_R, TraceEnd_R);
+        FRotator ShootRot_L = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_L, TraceEnd_L);
 
         GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootRot_L);
         GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootRot_R);
-        ABLOG(Warning, TEXT("Tlqkf"));
+
     }
 }
 
@@ -205,7 +247,7 @@ void AFFPawn::StopShooting()
     if (ShootingTimerHandle.IsValid())
     {
         GetWorld()->GetTimerManager().ClearTimer(ShootingTimerHandle);
-        ShootingTimerHandle.Invalidate();
+        //ShootingTimerHandle.Invalidate();
     }
 }
 
