@@ -5,8 +5,8 @@
 
 FName BoosterSocket1(TEXT("rt_thruster_jnt"));
 FName BoosterSocket2(TEXT("lf_thruster_jnt"));
-FName ShootSocket1(TEXT("lf_wheelMain_2_jnt"));
-FName ShootSocket2(TEXT("rt_wheelMain_2_jnt"));
+FName ShootSocket1(TEXT("BulletSocket_L"));
+FName ShootSocket2(TEXT("BulletSocket_R"));
 
 // Sets default values
 AFFPawn::AFFPawn()
@@ -115,6 +115,7 @@ void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
     PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AFFPawn::LookUp);
     PlayerInputComponent->BindAxis(TEXT("Rolling"), this, &AFFPawn::Rolling);
     PlayerInputComponent->BindAction(TEXT("Fire"), EInputEvent::IE_Pressed, this, &AFFPawn::Fire);
+    PlayerInputComponent->BindAction(TEXT("Fire"), EInputEvent::IE_Released, this, &AFFPawn::StopShooting);
 }
 
 void AFFPawn::MoveForward(float NewAxisValue)
@@ -155,14 +156,13 @@ void AFFPawn::Rolling(float NewAxisValue)
 
 void AFFPawn::Fire()
 {
-    ShootBullet();    //Timer를 넣어줘야하나?? 일단 그냥 넣어보기
-    ABLOG(Warning, TEXT("Shoot!!"));
+    GetWorld()->GetTimerManager().SetTimer(ShootingTimerHandle, this, &AFFPawn::ShootBullet, 0.2f, true);
 }
 
 void AFFPawn::ShootBullet()
 {
     FHitResult OutHit;
-    ECollisionChannel TraceChannel = ECC_Visibility; // Visibility채널의 의미???
+    ECollisionChannel TraceChannel = ECC_Visibility; // Visibility채널의 의미??? 
     FCollisionQueryParams CollisionParams;
     CollisionParams.AddIgnoredActor(this);  // 자신은 콜리전 반응이 일어나지 않게끔.
 
@@ -174,12 +174,41 @@ void AFFPawn::ShootBullet()
         CollisionParams
     );
 
+    DrawDebugLine(
+        GetWorld(),
+        GetActorLocation(),
+        GetActorLocation() + GetActorForwardVector() * 35000.0f,
+        bResult ? FColor::Green : FColor::Red,
+        false,
+        2.0f,
+        0,
+        1.0f
+    );
+
     if (bResult)
     {
-        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootSocketRotation_L);
-        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootSocketRotation_R);
+        FVector ImpactPoint = OutHit.ImpactPoint;
+        ABLOG(Warning, TEXT("Impact Location : %s"), *ImpactPoint.ToString());
+        FString HitComp = OutHit.GetComponent()->GetName();
+        ABLOG(Warning, TEXT("Hit component : %s"), *HitComp);
+        FRotator ShootRot_R = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_R, ImpactPoint);
+        FRotator ShootRot_L = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_L, ImpactPoint);
+
+        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootRot_L);
+        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootRot_R);
+        ABLOG(Warning, TEXT("Tlqkf"));
     }
 }
+
+void AFFPawn::StopShooting()
+{
+    if (ShootingTimerHandle.IsValid())
+    {
+        GetWorld()->GetTimerManager().ClearTimer(ShootingTimerHandle);
+        ShootingTimerHandle.Invalidate();
+    }
+}
+
 //void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 //{
 //    if (OtherActor && (OtherActor != this) && OtherComp)

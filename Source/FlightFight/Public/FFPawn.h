@@ -8,6 +8,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "TimerManager.h"
 #include "FFPawn.generated.h"
 
 UCLASS()
@@ -78,6 +79,9 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Socket")
 	FRotator ShootSocketRotation_R;
 
+	UPROPERTY(VisibleAnywhere, Category = "Socket")
+	FVector BulletSocket_Location;
+
 private:
 	void MoveForward(float NewAxisValue);
 	void Turn(float NewAxisValue);
@@ -86,4 +90,7 @@ private:
 	
 	void Fire();
 	void ShootBullet();
+	void StopShooting();
+
+	FTimerHandle ShootingTimerHandle;
 };
