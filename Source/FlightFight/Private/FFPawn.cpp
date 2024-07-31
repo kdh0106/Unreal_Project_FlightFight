@@ -7,6 +7,8 @@ FName BoosterSocket1(TEXT("rt_thruster_jnt"));
 FName BoosterSocket2(TEXT("lf_thruster_jnt"));
 FName ShootSocket1(TEXT("BulletSocket_L"));
 FName ShootSocket2(TEXT("BulletSocket_R"));
+FName TrailSocket1(TEXT("Trail_L"));
+FName TrailSocket2(TEXT("Trail_R"));
 
 // Sets default values
 AFFPawn::AFFPawn()
@@ -20,6 +22,8 @@ AFFPawn::AFFPawn()
     Movement = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("MOVEMENT"));
     ThrusterEffect_Left = CreateDefaultSubobject<UNiagaraComponent>(TEXT("THRUSTEREFFECT_LEFT"));
     ThrusterEffect_Right = CreateDefaultSubobject<UNiagaraComponent>(TEXT("THRUSTEREFFECT_RIGHT"));
+    TrailEffect_Left = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TRAIL_LEFT"));
+    TrailEffect_Right = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TRAIL_RIGHT"));
     BoxCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BOXCOLLISION"));
 
     static ConstructorHelpers::FObjectFinder<UNiagaraSystem>THRUSTER_EFFECT_LEFT(TEXT("/Game/Book/FX/NS_West_Fighter_Typhoon_Jet.NS_West_Fighter_Typhoon_Jet"));
@@ -32,6 +36,18 @@ AFFPawn::AFFPawn()
     if (THRUSTER_EFFECT_RIGHT.Succeeded())
     {
         ThrusterEffect_Right->SetAsset(THRUSTER_EFFECT_RIGHT.Object);
+    }
+
+   static ConstructorHelpers::FObjectFinder<UNiagaraSystem>TRAIL_EFFECT_LEFT(TEXT("/Game/Book/FX/NS_Flight_Trail.NS_Flight_Trail"));
+    if (TRAIL_EFFECT_LEFT.Succeeded())
+    {
+        TrailEffect_Left->SetAsset(TRAIL_EFFECT_LEFT.Object);
+    }
+
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem>TRAIL_EFFECT_RIGHT(TEXT("/Game/Book/FX/NS_Flight_Trail.NS_Flight_Trail"));
+    if (TRAIL_EFFECT_RIGHT.Succeeded())
+    {
+        TrailEffect_Right->SetAsset(TRAIL_EFFECT_RIGHT.Object);
     }
 
     RootComponent = BoxCollision;
@@ -48,8 +64,8 @@ AFFPawn::AFFPawn()
     FVector BoxExtent = BoxCollision->GetScaledBoxExtent();
     BoxCollision->SetRelativeLocation(FVector(0.0f, 0.0f, BoxExtent.Z + 15.0f));
 
-    Mesh->SetRelativeLocation(FVector(0.0f, 0.0f, -250.0f)); 
-    SpringArm->TargetArmLength = 2000.0f;
+    Mesh->SetRelativeLocation(FVector(0.0f, 0.0f, -350.0f)); 
+    SpringArm->TargetArmLength = 3000.0f;
     SpringArm->SetRelativeLocationAndRotation(FVector(-1000.0f, 0.0f, 500.0f), FRotator(-20.0f, 0.0f, 0.0f));
 
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> FF_Flight(TEXT("/Game/Book/SkeletalMesh/SK_West_Fighter_Typhoon.SK_West_Fighter_Typhoon"));
@@ -76,7 +92,6 @@ AFFPawn::AFFPawn()
     if (BulletBPClass.Class != nullptr)
     {
         BulletActorClass = BulletBPClass.Class;
-        ABLOG(Warning, TEXT("Suiii"));
     }
 }
 
@@ -91,6 +106,12 @@ void AFFPawn::BeginPlay()
     {
         ThrusterEffect_Left->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, BoosterSocket1);
         ThrusterEffect_Right->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, BoosterSocket2);
+    }
+
+   if (TrailEffect_Left && TrailEffect_Right)
+    {
+        TrailEffect_Left->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, TrailSocket1);
+        TrailEffect_Right->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, TrailSocket2);
     }
 }
 
@@ -127,11 +148,15 @@ void AFFPawn::MoveForward(float NewAxisValue)
         {
             ThrusterEffect_Left->Activate();
             ThrusterEffect_Right->Activate();
+            TrailEffect_Left->Activate();
+            TrailEffect_Right->Activate();
         }
         else
         {
             ThrusterEffect_Left->Deactivate();
             ThrusterEffect_Right->Deactivate();
+            TrailEffect_Left->Deactivate();
+            TrailEffect_Right->Deactivate();
         }
     }
 }
@@ -156,13 +181,21 @@ void AFFPawn::Rolling(float NewAxisValue)
 
 void AFFPawn::Fire()
 {
-    GetWorld()->GetTimerManager().SetTimer(ShootingTimerHandle, this, &AFFPawn::ShootBullet, 0.2f, true);
+    // 타이머를 설정하여 일정 시간 간격으로 ShootBullet 함수를 호출하도록 한다.
+    GetWorld()->GetTimerManager().SetTimer(
+        ShootingTimerHandle,        // 타이머 핸들: 타이머를 추적하고 조작하는 데 사용된다.
+        this,                       // 타이머가 호출할 함수가 속한 객체 (현재 객체: 'this')
+        &AFFPawn::ShootBullet,      // 타이머가 호출할 함수: ShootBullet
+        0.2f,                       // 함수 호출 간격: 0.2초
+        true                        // 반복 여부: true (반복 호출)
+    );
 }
+
 
 void AFFPawn::ShootBullet()
 {
     FHitResult OutHit_L, OutHit_R;
-    ECollisionChannel TraceChannel = ECC_Visibility; // Visibility채널의 의미??? 
+    ECollisionChannel TraceChannel = ECC_Visibility; 
     FCollisionQueryParams CollisionParams;
     CollisionParams.AddIgnoredActor(this);  // 자신은 콜리전 반응이 일어나지 않게끔.
 
@@ -198,18 +231,25 @@ void AFFPawn::ShootBullet()
         FVector ImpactPoint_L = OutHit_L.ImpactPoint;
         FVector ImpactPoint_R = OutHit_R.ImpactPoint;
 
-        /*FString HitComp = OutHit_L.GetComponent()->GetName();
-        ABLOG(Warning, TEXT("Hit component : %s"), *HitComp);*/
-
         FRotator ShootRot_R = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_R, ImpactPoint_R);
         FRotator ShootRot_L = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_L, ImpactPoint_L);
 
-        FActorSpawnParameters SpawnParams;
+        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootRot_L);
+        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootRot_R);
+    }
+    else
+    {
+        FVector TraceEnd_L = OutHit_L.TraceEnd;
+        FVector TraceEnd_R = OutHit_R.TraceEnd;
+
+        FRotator ShootRot_R = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_R, TraceEnd_R);
+        FRotator ShootRot_L = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_L, TraceEnd_L);
+
         AActor* SpawnedBullet_L = GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootRot_L);
         AActor* SpawnedBullet_R = GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootRot_R);
-        
-        /*FTimerHandle BulletTimerHandle_L;
-        GetWorld()->GetTimerManager().SetTimer(BulletTimerHandle_L, [SpawnedBullet_L]()
+
+        FTimerHandle BulletTimerHandle_L;
+        GetWorld()->GetTimerManager().SetTimer(BulletTimerHandle_L, [SpawnedBullet_L]()  //시간이 지나면 스폰된 총알을 소멸시킴
             {
                 if (IsValid(SpawnedBullet_L))
                 {
@@ -226,19 +266,7 @@ void AFFPawn::ShootBullet()
                     SpawnedBullet_R->Destroy();
                     ABLOG(Warning, TEXT("Destroy!!"));
                 }
-            }, 3.0f, false);*/
-    }
-    else
-    {
-        FVector TraceEnd_L = OutHit_L.TraceEnd;
-        FVector TraceEnd_R = OutHit_R.TraceEnd;
-
-        FRotator ShootRot_R = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_R, TraceEnd_R);
-        FRotator ShootRot_L = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_L, TraceEnd_L);
-
-        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootRot_L);
-        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootRot_R);
-
+            }, 3.0f, false);
     }
 }
 
@@ -246,8 +274,8 @@ void AFFPawn::StopShooting()
 {
     if (ShootingTimerHandle.IsValid())
     {
-        GetWorld()->GetTimerManager().ClearTimer(ShootingTimerHandle);
-        //ShootingTimerHandle.Invalidate();
+        GetWorld()->GetTimerManager().ClearTimer(ShootingTimerHandle);  //타이머를 정지
+        ShootingTimerHandle.Invalidate();                               //핸들을 무효화하여 타이머가 더 이상 실행되지 않도록
     }
 }
 
