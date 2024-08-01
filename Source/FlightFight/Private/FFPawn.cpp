@@ -9,6 +9,8 @@ FName ShootSocket1(TEXT("BulletSocket_L"));
 FName ShootSocket2(TEXT("BulletSocket_R"));
 FName TrailSocket1(TEXT("Trail_L"));
 FName TrailSocket2(TEXT("Trail_R"));
+FName TrailSocketW1(TEXT("Trail_WL"));
+FName TrailSocketW2(TEXT("Trail_WR"));
 
 // Sets default values
 AFFPawn::AFFPawn()
@@ -24,6 +26,8 @@ AFFPawn::AFFPawn()
     ThrusterEffect_Right = CreateDefaultSubobject<UNiagaraComponent>(TEXT("THRUSTEREFFECT_RIGHT"));
     TrailEffect_Left = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TRAIL_LEFT"));
     TrailEffect_Right = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TRAIL_RIGHT"));
+    TrailEffect_WRight = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TRAIL_WRIGHT"));
+    TrailEffect_WLeft = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TRAIL_WLEFT"));
     BoxCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BOXCOLLISION"));
 
     static ConstructorHelpers::FObjectFinder<UNiagaraSystem>THRUSTER_EFFECT_LEFT(TEXT("/Game/Book/FX/NS_West_Fighter_Typhoon_Jet.NS_West_Fighter_Typhoon_Jet"));
@@ -50,6 +54,18 @@ AFFPawn::AFFPawn()
         TrailEffect_Right->SetAsset(TRAIL_EFFECT_RIGHT.Object);
     }
 
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem>TRAIL_EFFECT_WRIGHT(TEXT("/Game/Book/FX/NS_Flight_Trail.NS_Flight_Trail"));
+    if (TRAIL_EFFECT_WRIGHT.Succeeded())
+    {
+        TrailEffect_WRight->SetAsset(TRAIL_EFFECT_WRIGHT.Object);
+    }
+
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem>TRAIL_EFFECT_WLEFT(TEXT("/Game/Book/FX/NS_Flight_Trail.NS_Flight_Trail"));
+    if (TRAIL_EFFECT_WLEFT.Succeeded())
+    {
+        TrailEffect_WLeft->SetAsset(TRAIL_EFFECT_WLEFT.Object);
+    }
+
     RootComponent = BoxCollision;
     Mesh->SetupAttachment(RootComponent);
     SpringArm->SetupAttachment(RootComponent);  
@@ -65,7 +81,7 @@ AFFPawn::AFFPawn()
     BoxCollision->SetRelativeLocation(FVector(0.0f, 0.0f, BoxExtent.Z + 15.0f));
 
     Mesh->SetRelativeLocation(FVector(0.0f, 0.0f, -350.0f)); 
-    SpringArm->TargetArmLength = 3000.0f;
+    SpringArm->TargetArmLength = 4500.0f;
     SpringArm->SetRelativeLocationAndRotation(FVector(-1000.0f, 0.0f, 500.0f), FRotator(-20.0f, 0.0f, 0.0f));
 
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> FF_Flight(TEXT("/Game/Book/SkeletalMesh/SK_West_Fighter_Typhoon.SK_West_Fighter_Typhoon"));
@@ -100,7 +116,7 @@ void AFFPawn::BeginPlay()
 {
     Super::BeginPlay();
 
-    SetActorLocation(FVector(0.0f, 0.0f, 250.0f));  //Box의 Z축 크기만큼 Mesh에서 -값을 해줘야 한다.
+    SetActorLocation(FVector(0.0f, 0.0f, 320.0f));  //Box의 Z축 크기만큼 Mesh에서 -값을 해줘야 한다.
 
     if (ThrusterEffect_Left && ThrusterEffect_Right)
     {
@@ -112,6 +128,8 @@ void AFFPawn::BeginPlay()
     {
         TrailEffect_Left->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, TrailSocket1);
         TrailEffect_Right->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, TrailSocket2);
+        TrailEffect_WLeft->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, TrailSocketW1);
+        TrailEffect_WRight->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, TrailSocketW2);
     }
 }
 
@@ -150,6 +168,8 @@ void AFFPawn::MoveForward(float NewAxisValue)
             ThrusterEffect_Right->Activate();
             TrailEffect_Left->Activate();
             TrailEffect_Right->Activate();
+            TrailEffect_WRight->Activate();
+            TrailEffect_WLeft->Activate();
         }
         else
         {
@@ -157,6 +177,8 @@ void AFFPawn::MoveForward(float NewAxisValue)
             ThrusterEffect_Right->Deactivate();
             TrailEffect_Left->Deactivate();
             TrailEffect_Right->Deactivate();
+            TrailEffect_WRight->Deactivate();
+            TrailEffect_WLeft->Deactivate();
         }
     }
 }

@@ -61,6 +61,12 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = Effect)
 	UNiagaraComponent* TrailEffect_Left;
 
+	UPROPERTY(VisibleAnywhere, Category = Effect)  //#
+	UNiagaraComponent* TrailEffect_WRight;
+
+	UPROPERTY(VisibleAnywhere, Category = Effect)  //#
+	UNiagaraComponent* TrailEffect_WLeft;
+
 	UPROPERTY(EditAnywhere, Category = FX)
 	UNiagaraSystem* NiagaraSystem;
 
