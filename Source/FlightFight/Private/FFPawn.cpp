@@ -2,6 +2,8 @@
 
 
 #include "FFPawn.h"
+#include "Particles/ParticleSystemComponent.h"
+#include "Components/StaticMeshComponent.h"
 
 FName BoosterSocket1(TEXT("rt_thruster_jnt"));
 FName BoosterSocket2(TEXT("lf_thruster_jnt"));
@@ -19,6 +21,7 @@ AFFPawn::AFFPawn()
     PrimaryActorTick.bCanEverTick = true;
 
     Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MESH")); 
+    Mesh_Death = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MESH_DEATH"));
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SPRINGARM"));
     Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("CAMERA"));
     Movement = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("MOVEMENT"));
@@ -66,11 +69,21 @@ AFFPawn::AFFPawn()
         TrailEffect_WLeft->SetAsset(TRAIL_EFFECT_WLEFT.Object);
     }
 
+    static ConstructorHelpers::FObjectFinder<UParticleSystem> ParticleSystem(TEXT("/Game/Realistic_Starter_VFX_Pack_Vol2/Particles/Explosion/P_Explosion_Big_B.P_Explosion_Big_B"));
+    if (ParticleSystem.Succeeded())
+    {
+        DeathParticleSystem = ParticleSystem.Object;
+    }
+
     RootComponent = BoxCollision;
     Mesh->SetupAttachment(RootComponent);
     SpringArm->SetupAttachment(RootComponent);  
     Camera->SetupAttachment(SpringArm);
     SpringArm->bUsePawnControlRotation = true;
+
+    Mesh_Death->SetupAttachment(RootComponent);
+    Mesh_Death->SetVisibility(false);
+
 
 
     //SetActorLocation(FVector(0.0f, 0.0f, 0.0f));
@@ -80,7 +93,8 @@ AFFPawn::AFFPawn()
     FVector BoxExtent = BoxCollision->GetScaledBoxExtent();
     BoxCollision->SetRelativeLocation(FVector(0.0f, 0.0f, BoxExtent.Z + 15.0f));
 
-    Mesh->SetRelativeLocation(FVector(0.0f, 0.0f, -350.0f)); 
+    Mesh->SetRelativeLocation(FVector(0.0f, 0.0f, -350.0f));
+    Mesh_Death->SetRelativeLocation(FVector(0.0f, 0.0f, -250.0f));
     SpringArm->TargetArmLength = 4500.0f;
     SpringArm->SetRelativeLocationAndRotation(FVector(-1000.0f, 0.0f, 500.0f), FRotator(-20.0f, 0.0f, 0.0f));
 
@@ -90,10 +104,16 @@ AFFPawn::AFFPawn()
         Mesh->SetSkeletalMesh(FF_Flight.Object);
     }
 
+    static ConstructorHelpers::FObjectFinder<UStaticMesh>FF_Flight_Death(TEXT("/Game/VigilanteContent/Vehicles/West_Fighter_Typhoon/Damaged/SM_West_Fighter_Typhoon_Damaged.SM_West_Fighter_Typhoon_Damaged"));
+    {
+        Mesh_Death->SetStaticMesh(FF_Flight_Death.Object);
+    }
+
     BoxCollision->SetCollisionProfileName(TEXT("Pawn"));
     BoxCollision->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
     BoxCollision->SetCollisionObjectType(ECollisionChannel::ECC_Pawn);
     BoxCollision->SetNotifyRigidBodyCollision(true);
+    BoxCollision->OnComponentBeginOverlap.AddDynamic(this, &AFFPawn::OnOverlapBegin);
 
     Movement->MaxSpeed = 6000.0f; //FloatingPawnMovement에 이미 있는 속성들이라 새로 만들어줄 필요 없음. 
     Movement->Acceleration = 500.0f;
@@ -109,6 +129,8 @@ AFFPawn::AFFPawn()
     {
         BulletActorClass = BulletBPClass.Class;
     }
+
+    HP = 100;
 }
 
 // Called when the game starts or when spawned
@@ -131,6 +153,16 @@ void AFFPawn::BeginPlay()
         TrailEffect_WLeft->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, TrailSocketW1);
         TrailEffect_WRight->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, TrailSocketW2);
     }
+}
+
+void AFFPawn::PostInitializeComponents()
+{
+    Super::PostInitializeComponents();  //오버라이드 하고 이거 안해주면 오류발생
+
+    OnHPIsZero.AddLambda([this]() -> void {
+        ABLOG(Warning, TEXT("HP is Zero!!!"));
+        SpawnDeathEffect();
+        });
 }
 
 // Called every frame
@@ -301,10 +333,47 @@ void AFFPawn::StopShooting()
     }
 }
 
-//void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
-//{
-//    if (OtherActor && (OtherActor != this) && OtherComp)
-//    {
-//        ABLOG(Warning, TEXT("Overlap with Actor %s"), *OtherActor->GetName());
-//    }
-//}
+void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+    if (OtherActor && (OtherActor != this) && OtherComp)
+    {
+        if (BulletActorClass)
+        {
+            HP -= 5;
+            ABLOG(Warning, TEXT("HP : %d"), HP);
+            if (HP <= 0)
+            {
+                OnHPIsZero.Broadcast();
+            }
+        }
+    }
+}
+
+void AFFPawn::SpawnDeathEffect()
+{
+    if (DeathParticleSystem)
+    {
+        UParticleSystemComponent* ParticleSystemComponent = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), DeathParticleSystem, GetActorLocation(), GetActorRotation());
+        if (ParticleSystemComponent)
+        {
+            FVector EffectScale(5.0f, 5.0f, 5.0f);  //폭발 이펙트의 크기를 더 크게
+            ParticleSystemComponent->SetWorldScale3D(EffectScale);
+            
+            Mesh->SetVisibility(false);
+            Mesh_Death->SetVisibility(true);
+            BoxCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+            DestroyAfterDelay(3.0f);
+        }
+    }
+}
+
+void AFFPawn::DestroyAfterDelay(float Delay)
+{
+    GetWorld()->GetTimerManager().SetTimer(DestroyTimerHandle, this, &AFFPawn::DestroySelf, Delay, false);
+}
+
+void AFFPawn::DestroySelf()
+{
+    Destroy();
+}
