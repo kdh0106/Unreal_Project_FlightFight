@@ -17,4 +17,3 @@ void AFFUIPlayerController::BeginPlay()
 	SetInputMode(Mode); 
 	bShowMouseCursor = true;
 }
-

@@ -116,9 +116,9 @@ AFFPawn::AFFPawn()
     BoxCollision->OnComponentBeginOverlap.AddDynamic(this, &AFFPawn::OnOverlapBegin);
 
     Movement->MaxSpeed = 6000.0f; //FloatingPawnMovement에 이미 있는 속성들이라 새로 만들어줄 필요 없음. 
-    Movement->Acceleration = 500.0f;
-    Movement->Deceleration = 50.0f;
-    Movement->TurningBoost = 1.0f;
+    Movement->Acceleration = 2000.0f;  //Origin : 500
+    Movement->Deceleration = 1000.0f;  // 50
+    Movement->TurningBoost = 100.0f;   // 1   프로젝트 설정의 입력에서 Turn, LookUp은 0.01 / Rolling은 0.5 / MoveForward는 1임
 
     bUseControllerRotationPitch = true;  //이걸 해주지 않으면 회전이 돌아가지 않음.
     bUseControllerRotationYaw = true;
@@ -131,6 +131,9 @@ AFFPawn::AFFPawn()
     }
 
     HP = 100;
+
+    SpawnLocation = FVector(4704.808635f, 4434.708254f, 432.5002f);
+    SpawnRotation = FRotator(0.0f, 0.0, 45.0f);
 }
 
 // Called when the game starts or when spawned
@@ -138,7 +141,7 @@ void AFFPawn::BeginPlay()
 {
     Super::BeginPlay();
 
-    SetActorLocation(FVector(0.0f, 0.0f, 320.0f));  //Box의 Z축 크기만큼 Mesh에서 -값을 해줘야 한다.
+    SetActorLocation(SpawnLocation);  //Box의 Z축 크기만큼 Mesh에서 -값을 해줘야 한다.  / 0, 0, 320
 
     if (ThrusterEffect_Left && ThrusterEffect_Right)
     {
@@ -337,14 +340,18 @@ void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AA
 {
     if (OtherActor && (OtherActor != this) && OtherComp)
     {
-        if (BulletActorClass)
-        {
+        if (OtherActor && OtherActor->GetClass()->GetName().Contains(TEXT("Bullet")))  //BulletActorClass
+        { 
             HP -= 5;
             ABLOG(Warning, TEXT("HP : %d"), HP);
             if (HP <= 0)
             {
                 OnHPIsZero.Broadcast();
             }
+        }
+        else if (OtherActor && OtherActor->GetClass()->GetName().Contains(TEXT("Landscape")))
+        {
+            SpawnDeathEffect();
         }
     }
 }
@@ -362,6 +369,12 @@ void AFFPawn::SpawnDeathEffect()
             Mesh->SetVisibility(false);
             Mesh_Death->SetVisibility(true);
             BoxCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+            if (Movement)  //-> 이동은 안되도, 회전은 됨
+            {
+                Movement->Deactivate(); //기존의 움직임을 멈춤
+            }
+            DisableInput(nullptr); //아무 입력도 받지 못하도록
 
             DestroyAfterDelay(3.0f);
         }

@@ -9,6 +9,7 @@
 #include "NiagaraComponent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "TimerManager.h"
+#include "FFPlayerController.h"
 #include "FFPawn.generated.h"
 
 DECLARE_MULTICAST_DELEGATE(FOnHPIsZeroDelegate)
@@ -101,6 +102,12 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "Socket")
 	FVector BulletSocket_Location;
+
+	UPROPERTY(VisibleAnywhere, Category = "Spawn")
+	FVector SpawnLocation;
+
+	UPROPERTY(VisibleAnywhere, Category = "Spawn")
+	FRotator SpawnRotation;
 
 private:
 	void MoveForward(float NewAxisValue);
