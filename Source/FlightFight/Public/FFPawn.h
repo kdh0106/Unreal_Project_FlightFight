@@ -119,8 +119,7 @@ private:
 	void ShootBullet();
 	void StopShooting();
 	void SpawnDeathEffect();
-	void DestroyAfterDelay(float Delay);
-	void DestroySelf();
+	void RespawnActor();
 
 	UPROPERTY(Transient, VisibleInstanceOnly)
 	int32 HP;
@@ -128,6 +127,10 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Effects")
 	UParticleSystem* DeathParticleSystem;
 
+	UPROPERTY()
+	class AFFPlayerController* FFPlayerController;
+
 	FTimerHandle ShootingTimerHandle;
 	FTimerHandle DestroyTimerHandle;
+	FTimerHandle RespawnTimerHandle;
 };

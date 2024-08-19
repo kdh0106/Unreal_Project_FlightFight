@@ -133,7 +133,7 @@ AFFPawn::AFFPawn()
     HP = 100;
 
     SpawnLocation = FVector(4704.808635f, 4434.708254f, 432.5002f);
-    SpawnRotation = FRotator(0.0f, 0.0, 45.0f);
+    SpawnRotation = FRotator(0.0f, 45.0f, 0.0f);
 }
 
 // Called when the game starts or when spawned
@@ -156,6 +156,8 @@ void AFFPawn::BeginPlay()
         TrailEffect_WLeft->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, TrailSocketW1);
         TrailEffect_WRight->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, TrailSocketW2);
     }
+
+   FFPlayerController = Cast<AFFPlayerController>(GetController());
 }
 
 void AFFPawn::PostInitializeComponents()
@@ -272,17 +274,6 @@ void AFFPawn::ShootBullet()
         CollisionParams
     );
 
-    /*DrawDebugLine(
-        GetWorld(),
-        GetActorLocation(),
-        GetActorLocation() + GetActorForwardVector() * 35000.0f,
-        bResult ? FColor::Green : FColor::Red,
-        false,
-        2.0f,
-        0,
-        1.0f
-    );*/
-
     if (bResult_L && bResult_R)
     {
         FVector ImpactPoint_L = OutHit_L.ImpactPoint;
@@ -368,25 +359,33 @@ void AFFPawn::SpawnDeathEffect()
             
             Mesh->SetVisibility(false);
             Mesh_Death->SetVisibility(true);
-            BoxCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            //BoxCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            SetActorEnableCollision(false);
 
             if (Movement)  //-> 이동은 안되도, 회전은 됨
             {
-                Movement->Deactivate(); //기존의 움직임을 멈춤
+                //Movement->Deactivate(); //기존의 움직임을 멈춤
+                Movement->SetActive(false);
             }
-            DisableInput(nullptr); //아무 입력도 받지 못하도록
+            DisableInput(FFPlayerController); //아무 입력도 받지 못하도록
 
-            DestroyAfterDelay(3.0f);
+            GetWorld()->GetTimerManager().SetTimer(RespawnTimerHandle, this, &AFFPawn::RespawnActor, 5.0f, false);
         }
     }
 }
 
-void AFFPawn::DestroyAfterDelay(float Delay)
+void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함.
 {
-    GetWorld()->GetTimerManager().SetTimer(DestroyTimerHandle, this, &AFFPawn::DestroySelf, Delay, false);
-}
+    SetActorLocation(SpawnLocation);
+    GetController()->SetControlRotation(SpawnRotation);  //SetActorRotation으로는 안됨.
 
-void AFFPawn::DestroySelf()
-{
-    Destroy();
+    Mesh->SetVisibility(true);
+    Mesh_Death->SetVisibility(false);
+    SetActorEnableCollision(true);
+    HP = 100;
+
+    Movement->SetActive(true);
+    Movement->Velocity = FVector::ZeroVector;  //이걸 안해주니, 전에 남아있던 속도 때문에 리스폰되자마자 혼자서 움직임.
+    EnableInput(FFPlayerController);
+
 }
