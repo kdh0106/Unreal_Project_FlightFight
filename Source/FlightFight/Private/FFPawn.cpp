@@ -377,6 +377,7 @@ void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함.
 {
     GetController()->SetControlRotation(SpawnRotation);  //SetActorRotation으로는 안됨.
     SetActorLocation(SpawnLocation);
+    SetActorRotation(SpawnRotation); //이걸 해주지 않으면 리스폰될때 잠깐동안 사망 당시의 Rotation을 유지해서, 리스폰되자마자 충돌이 발생함.
 
     Mesh->SetVisibility(true);
     Mesh_Death->SetVisibility(false);
