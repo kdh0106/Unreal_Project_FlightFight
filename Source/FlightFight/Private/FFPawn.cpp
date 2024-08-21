@@ -344,6 +344,7 @@ void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AA
         {
             SpawnDeathEffect();
         }
+        //추후 적 기체와의 충돌 시 사망 추가 예정
     }
 }
 
@@ -355,17 +356,15 @@ void AFFPawn::SpawnDeathEffect()
         if (ParticleSystemComponent)
         {
             FVector EffectScale(5.0f, 5.0f, 5.0f);  //폭발 이펙트의 크기를 더 크게
-            ParticleSystemComponent->SetWorldScale3D(EffectScale);
+            ParticleSystemComponent->SetWorldScale3D(EffectScale); 
             
             Mesh->SetVisibility(false);
             Mesh_Death->SetVisibility(true);
-            //BoxCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
             SetActorEnableCollision(false);
 
-            if (Movement)  //-> 이동은 안되도, 회전은 됨
-            {
-                //Movement->Deactivate(); //기존의 움직임을 멈춤
-                Movement->SetActive(false);
+            if (Movement)  //-> 이동은 안되도, 회전은 됨 
+            {  
+                Movement->SetActive(false); //기존의 움직임을 멈춤
             }
             DisableInput(FFPlayerController); //아무 입력도 받지 못하도록
 
@@ -376,15 +375,15 @@ void AFFPawn::SpawnDeathEffect()
 
 void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함.
 {
-    SetActorLocation(SpawnLocation);
     GetController()->SetControlRotation(SpawnRotation);  //SetActorRotation으로는 안됨.
+    SetActorLocation(SpawnLocation);
 
     Mesh->SetVisibility(true);
     Mesh_Death->SetVisibility(false);
     SetActorEnableCollision(true);
     HP = 100;
 
-    Movement->SetActive(true);
+    Movement->SetActive(true); 
     Movement->Velocity = FVector::ZeroVector;  //이걸 안해주니, 전에 남아있던 속도 때문에 리스폰되자마자 혼자서 움직임.
     EnableInput(FFPlayerController);
 
