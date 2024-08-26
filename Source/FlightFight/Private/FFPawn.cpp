@@ -32,6 +32,7 @@ AFFPawn::AFFPawn()
     TrailEffect_WRight = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TRAIL_WRIGHT"));
     TrailEffect_WLeft = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TRAIL_WLEFT"));
     BoxCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("BOXCOLLISION"));
+    HPBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HPBARWIDGET"));
 
     static ConstructorHelpers::FObjectFinder<UNiagaraSystem>THRUSTER_EFFECT_LEFT(TEXT("/Game/Book/FX/NS_West_Fighter_Typhoon_Jet.NS_West_Fighter_Typhoon_Jet"));
     if (THRUSTER_EFFECT_LEFT.Succeeded())
@@ -84,6 +85,8 @@ AFFPawn::AFFPawn()
     Mesh_Death->SetupAttachment(RootComponent);
     Mesh_Death->SetVisibility(false);
 
+    HPBarWidget->SetupAttachment(Mesh);
+
 
 
     //SetActorLocation(FVector(0.0f, 0.0f, 0.0f));
@@ -97,6 +100,15 @@ AFFPawn::AFFPawn()
     Mesh_Death->SetRelativeLocation(FVector(0.0f, 0.0f, -250.0f));
     SpringArm->TargetArmLength = 4500.0f;
     SpringArm->SetRelativeLocationAndRotation(FVector(-1000.0f, 0.0f, 500.0f), FRotator(-20.0f, 0.0f, 0.0f));
+
+    HPBarWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 480.0f));
+    HPBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
+    static ConstructorHelpers::FClassFinder<UUserWidget>UI_HUD_HP(TEXT("/Game/Book/UI/UI_HPBar.UI_HPBar_C"));
+    if (UI_HUD_HP.Succeeded())
+    {
+        HPBarWidget->SetWidgetClass(UI_HUD_HP.Class);
+        HPBarWidget->SetDrawSize(FVector2D(150.0f, 50.0f));
+    }
 
     static ConstructorHelpers::FObjectFinder<USkeletalMesh> FF_Flight(TEXT("/Game/Book/SkeletalMesh/SK_West_Fighter_Typhoon.SK_West_Fighter_Typhoon"));
     if (FF_Flight.Succeeded())
@@ -134,12 +146,27 @@ AFFPawn::AFFPawn()
 
     SpawnLocation = FVector(4704.808635f, 4434.708254f, 432.5002f);
     SpawnRotation = FRotator(0.0f, 45.0f, 0.0f);
+
+    static ConstructorHelpers::FClassFinder<UUserWidget>AimWidget(TEXT("/Game/Book/UI/UI_Aim.UI_Aim_C"));
+    if (AimWidget.Succeeded())
+    {
+        CrosshairWidgetClass = AimWidget.Class;
+    }
 }
 
 // Called when the game starts or when spawned
 void AFFPawn::BeginPlay()
 {
     Super::BeginPlay();
+
+    if (IsValid(CrosshairWidgetClass))
+    {
+        CrosshairWidget = Cast<UUserWidget>(CreateWidget(GetWorld(), CrosshairWidgetClass));
+        if (IsValid(CrosshairWidget))
+        {
+            CrosshairWidget->AddToViewport();
+        }
+    }
 
     SetActorLocation(SpawnLocation);  //Box의 Z축 크기만큼 Mesh에서 -값을 해줘야 한다.  / 0, 0, 320
 
@@ -180,6 +207,8 @@ void AFFPawn::Tick(float DeltaTime)
     ShootSocketLocation_R = Mesh->GetSocketLocation(ShootSocket2);
     ShootSocketRotation_L = Mesh->GetSocketRotation(ShootSocket1);
     ShootSocketRotation_R = Mesh->GetSocketRotation(ShootSocket2);
+
+    CameraLocation = Camera->GetComponentLocation();
 }
 
 void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -260,16 +289,16 @@ void AFFPawn::ShootBullet()
 
     bool bResult_L = GetWorld()->LineTraceSingleByChannel(
         OutHit_L,
-        ShootSocketLocation_L,
-        ShootSocketLocation_L + GetActorForwardVector() * 35000.0f,
+        CameraLocation,  //shootSocketLocation_L
+        CameraLocation + GetActorForwardVector() * 35000.0f,
         TraceChannel,
         CollisionParams
     );
 
     bool bResult_R = GetWorld()->LineTraceSingleByChannel(
         OutHit_R,
-        ShootSocketLocation_R,
-        ShootSocketLocation_R + GetActorForwardVector() * 35000.0f,
+        CameraLocation,
+        CameraLocation + GetActorForwardVector() * 35000.0f,
         TraceChannel,
         CollisionParams
     );
@@ -282,8 +311,11 @@ void AFFPawn::ShootBullet()
         FRotator ShootRot_R = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_R, ImpactPoint_R);
         FRotator ShootRot_L = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_L, ImpactPoint_L);
 
-        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootRot_L);
-        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootRot_R);
+        /*GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootRot_L);
+        GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootRot_R);*/
+
+        SpawnBullet(ShootSocketLocation_L, ShootRot_L);
+        SpawnBullet(ShootSocketLocation_R, ShootRot_R);
     }
     else
     {
@@ -293,31 +325,52 @@ void AFFPawn::ShootBullet()
         FRotator ShootRot_R = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_R, TraceEnd_R);
         FRotator ShootRot_L = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_L, TraceEnd_L);
 
-        AActor* SpawnedBullet_L = GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootRot_L);
-        AActor* SpawnedBullet_R = GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootRot_R);
+        //AActor* SpawnedBullet_L = GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootRot_L);
+        //AActor* SpawnedBullet_R = GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootRot_R);
 
-        FTimerHandle BulletTimerHandle_L;
-        GetWorld()->GetTimerManager().SetTimer(BulletTimerHandle_L, [SpawnedBullet_L]()  //시간이 지나면 스폰된 총알을 소멸시킴
-            {
-                if (IsValid(SpawnedBullet_L))
-                {
-                    SpawnedBullet_L->Destroy();
-                    ABLOG(Warning, TEXT("Destroy!!"));
-                }
-            }, 3.0f, false);
+        //FTimerHandle BulletTimerHandle_L;
+        //GetWorld()->GetTimerManager().SetTimer(BulletTimerHandle_L, [SpawnedBullet_L]()  //시간이 지나면 스폰된 총알을 소멸시킴
+        //    {
+        //        if (IsValid(SpawnedBullet_L))
+        //        {
+        //            SpawnedBullet_L->Destroy();
+        //            //ABLOG(Warning, TEXT("Destroy!!"));
+        //        }
+        //    }, 3.0f, false);
 
-        FTimerHandle BulletTimerHandle_R;
-        GetWorld()->GetTimerManager().SetTimer(BulletTimerHandle_R, [SpawnedBullet_R]()
-            {
-                if (IsValid(SpawnedBullet_R))
-                {
-                    SpawnedBullet_R->Destroy();
-                    ABLOG(Warning, TEXT("Destroy!!"));
-                }
-            }, 3.0f, false);
+        //FTimerHandle BulletTimerHandle_R;
+        //GetWorld()->GetTimerManager().SetTimer(BulletTimerHandle_R, [SpawnedBullet_R]()
+        //    {
+        //        if (IsValid(SpawnedBullet_R))
+        //        {
+        //            SpawnedBullet_R->Destroy();
+        //            ABLOG(Warning, TEXT("Destroy!!"));
+        //        }
+        //    }, 3.0f, false);
+        SpawnBullet(ShootSocketLocation_L, ShootRot_L);
+        SpawnBullet(ShootSocketLocation_R, ShootRot_R);
     }
 }
 
+void AFFPawn::SpawnBullet(const FVector& Location, const FRotator& Rotation)
+{
+    AActor* SpawnedBullet = GetWorld()->SpawnActor<AActor>(BulletActorClass, Location, Rotation);
+    if (SpawnedBullet)
+    {
+        SpawnedBullet->SetInstigator(this);
+
+        FTimerHandle BulletTimerHandle;
+        GetWorld()->GetTimerManager().SetTimer(BulletTimerHandle, [SpawnedBullet]()  //시간이 지나면 스폰된 총알을 소멸시킴
+            {
+                if (IsValid(SpawnedBullet))
+                {
+                    SpawnedBullet->Destroy();
+                    //ABLOG(Warning, TEXT("Destroy!!"));
+                }
+            }, 3.0f, false);
+    }  
+}
+ 
 void AFFPawn::StopShooting()
 {
     if (ShootingTimerHandle.IsValid())
@@ -329,15 +382,19 @@ void AFFPawn::StopShooting()
 
 void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-    if (OtherActor && (OtherActor != this) && OtherComp)
+    if (OtherActor && (OtherActor != this) && OtherComp) 
     {
-        if (OtherActor && OtherActor->GetClass()->GetName().Contains(TEXT("Bullet")))  //BulletActorClass
-        { 
-            HP -= 5;
-            ABLOG(Warning, TEXT("HP : %d"), HP);
-            if (HP <= 0)
-            {
-                OnHPIsZero.Broadcast();
+        if(OtherActor && BulletActorClass && OtherActor->IsA(BulletActorClass))
+        //if (OtherActor && OtherActor->GetClass()->GetName().Contains(TEXT("Bullet")))   -  bullet과 충돌하면 HP가 깎인다.
+        {
+            AActor* Bullet = Cast<AActor>(OtherActor);
+            if (Bullet && Bullet->GetInstigator() != this) {
+                HP -= 5;
+                ABLOG(Warning, TEXT("HP : %d"), HP);
+                if (HP <= 0)
+                {
+                    OnHPIsZero.Broadcast();
+                }
             }
         }
         else if (OtherActor && OtherActor->GetClass()->GetName().Contains(TEXT("Landscape")))

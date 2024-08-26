@@ -10,6 +10,8 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "TimerManager.h"
 #include "FFPlayerController.h"
+#include "Blueprint/UserWidget.h"
+#include "Components/WidgetComponent.h"
 #include "FFPawn.generated.h"
 
 DECLARE_MULTICAST_DELEGATE(FOnHPIsZeroDelegate)
@@ -88,6 +90,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Spawning")
 	TSubclassOf<AActor> BulletActorClass;
 
+	UPROPERTY(VisibleAnywhere, Category = "Camera")
+	FVector CameraLocation;
+
 	UPROPERTY(VisibleAnywhere, Category = "Socket")
 	FVector ShootSocketLocation_L;
 
@@ -109,6 +114,14 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Spawn")
 	FRotator SpawnRotation;
 
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UUserWidget> CrosshairWidgetClass;
+
+	UUserWidget* CrosshairWidget;
+
+	UPROPERTY(VisibleAnywhere, Category = "UI")
+	class UWidgetComponent* HPBarWidget;
+
 private:
 	void MoveForward(float NewAxisValue);
 	void Turn(float NewAxisValue);
@@ -117,6 +130,7 @@ private:
 	
 	void Fire();
 	void ShootBullet();
+	void SpawnBullet(const FVector& Location, const FRotator& Rotation);
 	void StopShooting();
 	void SpawnDeathEffect();
 	void RespawnActor();
