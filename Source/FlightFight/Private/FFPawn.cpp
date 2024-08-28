@@ -142,7 +142,10 @@ AFFPawn::AFFPawn()
         BulletActorClass = BulletBPClass.Class;
     }
 
-    HP = 100;
+    //HP = 100;
+    MaxHP = 100.0f;
+    CurrentHP = MaxHP;
+    SetHP(CurrentHP);
 
     SpawnLocation = FVector(4704.808635f, 4434.708254f, 432.5002f);
     SpawnRotation = FRotator(0.0f, 45.0f, 0.0f);
@@ -167,6 +170,8 @@ void AFFPawn::BeginPlay()
             CrosshairWidget->AddToViewport();
         }
     }
+    
+    UpdateHPBar();
 
     SetActorLocation(SpawnLocation);  //Box의 Z축 크기만큼 Mesh에서 -값을 해줘야 한다.  / 0, 0, 320
 
@@ -325,28 +330,6 @@ void AFFPawn::ShootBullet()
         FRotator ShootRot_R = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_R, TraceEnd_R);
         FRotator ShootRot_L = UKismetMathLibrary::FindLookAtRotation(ShootSocketLocation_L, TraceEnd_L);
 
-        //AActor* SpawnedBullet_L = GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_L, ShootRot_L);
-        //AActor* SpawnedBullet_R = GetWorld()->SpawnActor<AActor>(BulletActorClass, ShootSocketLocation_R, ShootRot_R);
-
-        //FTimerHandle BulletTimerHandle_L;
-        //GetWorld()->GetTimerManager().SetTimer(BulletTimerHandle_L, [SpawnedBullet_L]()  //시간이 지나면 스폰된 총알을 소멸시킴
-        //    {
-        //        if (IsValid(SpawnedBullet_L))
-        //        {
-        //            SpawnedBullet_L->Destroy();
-        //            //ABLOG(Warning, TEXT("Destroy!!"));
-        //        }
-        //    }, 3.0f, false);
-
-        //FTimerHandle BulletTimerHandle_R;
-        //GetWorld()->GetTimerManager().SetTimer(BulletTimerHandle_R, [SpawnedBullet_R]()
-        //    {
-        //        if (IsValid(SpawnedBullet_R))
-        //        {
-        //            SpawnedBullet_R->Destroy();
-        //            ABLOG(Warning, TEXT("Destroy!!"));
-        //        }
-        //    }, 3.0f, false);
         SpawnBullet(ShootSocketLocation_L, ShootRot_L);
         SpawnBullet(ShootSocketLocation_R, ShootRot_R);
     }
@@ -365,7 +348,6 @@ void AFFPawn::SpawnBullet(const FVector& Location, const FRotator& Rotation)
                 if (IsValid(SpawnedBullet))
                 {
                     SpawnedBullet->Destroy();
-                    //ABLOG(Warning, TEXT("Destroy!!"));
                 }
             }, 3.0f, false);
     }  
@@ -385,13 +367,13 @@ void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AA
     if (OtherActor && (OtherActor != this) && OtherComp) 
     {
         if(OtherActor && BulletActorClass && OtherActor->IsA(BulletActorClass))
-        //if (OtherActor && OtherActor->GetClass()->GetName().Contains(TEXT("Bullet")))   -  bullet과 충돌하면 HP가 깎인다.
         {
             AActor* Bullet = Cast<AActor>(OtherActor);
             if (Bullet && Bullet->GetInstigator() != this) {
-                HP -= 5;
-                ABLOG(Warning, TEXT("HP : %d"), HP);
-                if (HP <= 0)
+                float NewHP = CurrentHP - 5.0f;
+                SetHP(NewHP);
+                ABLOG(Warning, TEXT("HP : %f"), CurrentHP);
+                if (CurrentHP < KINDA_SMALL_NUMBER)
                 {
                     OnHPIsZero.Broadcast();
                 }
@@ -399,7 +381,7 @@ void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AA
         }
         else if (OtherActor && OtherActor->GetClass()->GetName().Contains(TEXT("Landscape")))
         {
-            SpawnDeathEffect();
+            SpawnDeathEffect(); 
         }
         //추후 적 기체와의 충돌 시 사망 추가 예정
     }
@@ -419,7 +401,7 @@ void AFFPawn::SpawnDeathEffect()
             Mesh_Death->SetVisibility(true);
             SetActorEnableCollision(false);
 
-            if (Movement)  //-> 이동은 안되도, 회전은 됨 
+            if (Movement)  //-> 이동은 안돼도, 회전은 됨 
             {  
                 Movement->SetActive(false); //기존의 움직임을 멈춤
             }
@@ -439,10 +421,30 @@ void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함.
     Mesh->SetVisibility(true);
     Mesh_Death->SetVisibility(false);
     SetActorEnableCollision(true);
-    HP = 100;
+    SetHP(MaxHP);
 
     Movement->SetActive(true); 
     Movement->Velocity = FVector::ZeroVector;  //이걸 안해주니, 전에 남아있던 속도 때문에 리스폰되자마자 혼자서 움직임.
     EnableInput(FFPlayerController);
 
+}
+
+void AFFPawn::UpdateHPBar()
+{
+    auto HPWidget = Cast<UFFHPBarWidget>(HPBarWidget->GetUserWidgetObject());
+    if (HPWidget)
+    {
+        ABLOG(Warning, TEXT("sucex!"));
+        HPWidget->UpdateHPBarWidget(CurrentHP, MaxHP);
+    }
+    else
+    {
+        ABLOG(Warning, TEXT("MM..."))
+    }
+}
+
+void AFFPawn::SetHP(float NewHP)
+{
+    CurrentHP = FMath::Clamp(NewHP, 0, MaxHP);
+    UpdateHPBar();
 }

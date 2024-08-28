@@ -12,6 +12,7 @@
 #include "FFPlayerController.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/WidgetComponent.h"
+#include "FFHPBarWidget.h"
 #include "FFPawn.generated.h"
 
 DECLARE_MULTICAST_DELEGATE(FOnHPIsZeroDelegate)
@@ -134,9 +135,17 @@ private:
 	void StopShooting();
 	void SpawnDeathEffect();
 	void RespawnActor();
+	void UpdateHPBar();
+	void SetHP(float NewHP);
 
 	UPROPERTY(Transient, VisibleInstanceOnly)
 	int32 HP;
+
+	UPROPERTY(EditAnywhere, Category = "Stats", Meta = (AllowPrivateAccess = true))
+	float MaxHP;
+
+	UPROPERTY(EditAnywhere, Category = "Stats", Meta = (AllowPrivateAccess = true))
+	float CurrentHP;
 
 	UPROPERTY(EditAnywhere, Category = "Effects")
 	UParticleSystem* DeathParticleSystem;
