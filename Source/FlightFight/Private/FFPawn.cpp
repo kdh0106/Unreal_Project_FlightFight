@@ -4,6 +4,7 @@
 #include "FFPawn.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Net/UnrealNetwork.h"
 
 FName BoosterSocket1(TEXT("rt_thruster_jnt"));
 FName BoosterSocket2(TEXT("lf_thruster_jnt"));
@@ -19,6 +20,11 @@ AFFPawn::AFFPawn()
 {
     // Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
     PrimaryActorTick.bCanEverTick = true;
+   
+    SetReplicates(true);
+    //SetReplicateMovement(true);*/
+    bReplicates = true;
+    SetReplicateMovement(true);
 
     Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MESH")); 
     Mesh_Death = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MESH_DEATH"));
@@ -40,7 +46,7 @@ AFFPawn::AFFPawn()
         ThrusterEffect_Left->SetAsset(THRUSTER_EFFECT_LEFT.Object);
     }
 
-    static ConstructorHelpers::FObjectFinder<UNiagaraSystem>THRUSTER_EFFECT_RIGHT(TEXT("/Game/Book/FX/NS_West_Fighter_Typhoon_Jet.NS_West_Fighter_Typhoon_Jet"));
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem>THRUSTER_EFFECT_RIGHT(TEXT("/Game/Book/FX  /NS_West_Fighter_Typhoon_Jet.NS_West_Fighter_Typhoon_Jet"));
     if (THRUSTER_EFFECT_RIGHT.Succeeded())
     {
         ThrusterEffect_Right->SetAsset(THRUSTER_EFFECT_RIGHT.Object);
@@ -131,6 +137,7 @@ AFFPawn::AFFPawn()
     Movement->Acceleration = 2000.0f;  //Origin : 500
     Movement->Deceleration = 1000.0f;  // 50
     Movement->TurningBoost = 100.0f;   // 1   프로젝트 설정의 입력에서 Turn, LookUp은 0.01 / Rolling은 0.5 / MoveForward는 1임
+    Movement->SetIsReplicated(true);  //리플리케이트
 
     bUseControllerRotationPitch = true;  //이걸 해주지 않으면 회전이 돌아가지 않음.
     bUseControllerRotationYaw = true;
@@ -156,7 +163,7 @@ AFFPawn::AFFPawn()
         CrosshairWidgetClass = AimWidget.Class;
     }
 }
-
+  
 // Called when the game starts or when spawned
 void AFFPawn::BeginPlay()
 {
@@ -205,7 +212,7 @@ void AFFPawn::PostInitializeComponents()
 // Called every frame
 void AFFPawn::Tick(float DeltaTime)
 {
-    Super::Tick(DeltaTime);
+    Super::Tick(DeltaTime); 
     CurrentSpeed = this->GetVelocity().Size();
 
     ShootSocketLocation_L = Mesh->GetSocketLocation(ShootSocket1);
@@ -214,6 +221,16 @@ void AFFPawn::Tick(float DeltaTime)
     ShootSocketRotation_R = Mesh->GetSocketRotation(ShootSocket2);
 
     CameraLocation = Camera->GetComponentLocation();
+
+    if (IsLocallyControlled())
+    {
+        ServerMoveForward(GetActorLocation(), Movement->Velocity);
+    }
+    else
+    {
+        SetActorLocation(FMath::VInterpTo(GetActorLocation(), ReplicatedLocation, DeltaTime, 10.0f));
+        Movement->Velocity = ReplicatedVelocity;
+    }
 }
 
 void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -228,29 +245,67 @@ void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
     PlayerInputComponent->BindAction(TEXT("Fire"), EInputEvent::IE_Released, this, &AFFPawn::StopShooting);
 }
 
+void AFFPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+    Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+    //DOREPLIFETIME(AFFPawn, Movement);
+    DOREPLIFETIME(AFFPawn, ReplicatedLocation);
+    DOREPLIFETIME(AFFPawn, ReplicatedVelocity);
+} 
+
+
+bool AFFPawn::ServerMoveForward_Validate(FVector NewLocation, FVector NewVelocity)
+{
+    //ABLOG(Warning, TEXT("Validate is it work? : %f"), Value);
+    //return FMath::Abs(Value) <= 1.0f;
+    return true;
+}
+
+void AFFPawn::ServerMoveForward_Implementation(FVector NewLocation, FVector NewVelocity)
+{
+    // 서버에서 클라이언트의 입력을 받아 이동 처리
+    //if (Movement)
+    //{
+    //    Movement->AddInputVector(GetActorForwardVector() * Value);
+    //    ABLOG(Warning, TEXT("In Movement!"));   //클라이언트 동작 로그
+    //}
+    //else
+    //{
+    //    AddMovementInput(GetActorForwardVector(), Value);
+    //    ABLOG(Warning, TEXT("In Else!"));
+    //}
+    ReplicatedLocation = NewLocation;
+    ReplicatedVelocity = NewVelocity;
+
+    SetActorLocation(NewLocation);
+    Movement->Velocity = NewVelocity;
+}
+
+
 void AFFPawn::MoveForward(float NewAxisValue)
 {
     if (Movement)
     {
         AddMovementInput(GetActorForwardVector(), NewAxisValue);
-        if (NewAxisValue > 0.0f)
-        {
-            ThrusterEffect_Left->Activate();
-            ThrusterEffect_Right->Activate();
-            TrailEffect_Left->Activate();
-            TrailEffect_Right->Activate();
-            TrailEffect_WRight->Activate();
-            TrailEffect_WLeft->Activate();
-        }
-        else
-        {
-            ThrusterEffect_Left->Deactivate();
-            ThrusterEffect_Right->Deactivate();
-            TrailEffect_Left->Deactivate();
-            TrailEffect_Right->Deactivate();
-            TrailEffect_WRight->Deactivate();
-            TrailEffect_WLeft->Deactivate();
-        }
+    //   
+    //    if (NewAxisValue > 0.0f)
+    //    {
+    //        ThrusterEffect_Left->Activate();
+    //        ThrusterEffect_Right->Activate();
+    //        TrailEffect_Left->Activate();
+    //        TrailEffect_Right->Activate();
+    //        TrailEffect_WRight->Activate();
+    //        TrailEffect_WLeft->Activate();
+    //    }
+    //    else
+    //    {
+    //        ThrusterEffect_Left->Deactivate();
+    //        ThrusterEffect_Right->Deactivate();
+    //        TrailEffect_Left->Deactivate();
+    //        TrailEffect_Right->Deactivate();
+    //        TrailEffect_WRight->Deactivate();
+    //        TrailEffect_WLeft->Deactivate();
+    //    }
     }
 }
 

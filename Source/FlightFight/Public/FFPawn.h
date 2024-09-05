@@ -13,6 +13,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Components/WidgetComponent.h"
 #include "FFHPBarWidget.h"
+#include "Net/UnrealNetwork.h"
 #include "FFPawn.generated.h"
 
 DECLARE_MULTICAST_DELEGATE(FOnHPIsZeroDelegate)
@@ -26,6 +27,9 @@ public:
 	// Sets default values for this pawn's properties
 	AFFPawn();
 
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerMoveForward(FVector NewLocation, FVector NewVelocity);
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -34,6 +38,7 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 	virtual void PostInitializeComponents() override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;
 
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -52,7 +57,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = Visual)
 	UStaticMeshComponent* Mesh_Death;
 
-	UPROPERTY(VisibleAnywhere, Category = Movement)
+	UPROPERTY(VisibleAnywhere, Replicated, Category = Movement)
 	UFloatingPawnMovement* Movement;
 
 	UPROPERTY(VisibleAnywhere, Category = Camera)
@@ -122,7 +127,7 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "UI")
 	class UWidgetComponent* HPBarWidget;
-
+	 
 private:
 	void MoveForward(float NewAxisValue);
 	void Turn(float NewAxisValue);
@@ -156,4 +161,12 @@ private:
 	FTimerHandle ShootingTimerHandle;
 	FTimerHandle DestroyTimerHandle;
 	FTimerHandle RespawnTimerHandle;
+
+	UPROPERTY(Replicated)
+	FVector ReplicatedLocation;
+
+	UPROPERTY(Replicated)
+	FVector ReplicatedVelocity;
+
+
 };
