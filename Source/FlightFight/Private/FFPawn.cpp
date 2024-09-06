@@ -224,11 +224,12 @@ void AFFPawn::Tick(float DeltaTime)
 
     if (IsLocallyControlled())
     {
-        ServerMoveForward(GetActorLocation(), Movement->Velocity);
+        ServerMoveForward(GetActorLocation(), Movement->Velocity, GetActorRotation());
     }
     else
     {
         SetActorLocation(FMath::VInterpTo(GetActorLocation(), ReplicatedLocation, DeltaTime, 10.0f));
+        SetActorRotation(ReplicatedRotation);
         Movement->Velocity = ReplicatedVelocity;
     }
 }
@@ -251,17 +252,18 @@ void AFFPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeP
     //DOREPLIFETIME(AFFPawn, Movement);
     DOREPLIFETIME(AFFPawn, ReplicatedLocation);
     DOREPLIFETIME(AFFPawn, ReplicatedVelocity);
+    DOREPLIFETIME(AFFPawn, ReplicatedRotation);
 } 
 
 
-bool AFFPawn::ServerMoveForward_Validate(FVector NewLocation, FVector NewVelocity)
+bool AFFPawn::ServerMoveForward_Validate(FVector NewLocation, FVector NewVelocity, FRotator NewRotation)
 {
     //ABLOG(Warning, TEXT("Validate is it work? : %f"), Value);
     //return FMath::Abs(Value) <= 1.0f;
     return true;
 }
 
-void AFFPawn::ServerMoveForward_Implementation(FVector NewLocation, FVector NewVelocity)
+void AFFPawn::ServerMoveForward_Implementation(FVector NewLocation, FVector NewVelocity, FRotator NewRotation)
 {
     // 서버에서 클라이언트의 입력을 받아 이동 처리
     //if (Movement)
@@ -276,8 +278,10 @@ void AFFPawn::ServerMoveForward_Implementation(FVector NewLocation, FVector NewV
     //}
     ReplicatedLocation = NewLocation;
     ReplicatedVelocity = NewVelocity;
+    ReplicatedRotation = NewRotation;
 
     SetActorLocation(NewLocation);
+    SetActorRotation(NewRotation);
     Movement->Velocity = NewVelocity;
 }
 
@@ -316,10 +320,11 @@ void AFFPawn::Turn(float NewAxisValue)
 
 void AFFPawn::LookUp(float NewAxisValue)
 {
-    if (CurrentSpeed >= 4000.0f)
+    /*if (CurrentSpeed >= 4000.0f)
     {
         AddControllerPitchInput(NewAxisValue);
-    }
+    }*/
+    AddControllerPitchInput(NewAxisValue);
 }
 
 void AFFPawn::Rolling(float NewAxisValue)
@@ -462,14 +467,19 @@ void AFFPawn::SpawnDeathEffect()
             }
             DisableInput(FFPlayerController); //아무 입력도 받지 못하도록
 
-            GetWorld()->GetTimerManager().SetTimer(RespawnTimerHandle, this, &AFFPawn::RespawnActor, 5.0f, false);
+            GetWorld()->GetTimerManager().SetTimer(RespawnTimerHandle, this, &AFFPawn::RespawnActor, 5.0f, false); 
         }
     }
 }
 
-void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함.
+void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함. 
 {
-    GetController()->SetControlRotation(SpawnRotation);  //SetActorRotation으로는 안됨.
+    if (GetController())
+    {
+        GetController()->SetControlRotation(SpawnRotation);  //SetActorRotation으로는 안됨.
+        ABLOG(Warning, TEXT("Getto!!"));
+    }
+
     SetActorLocation(SpawnLocation);
     SetActorRotation(SpawnRotation); //이걸 해주지 않으면 리스폰될때 잠깐동안 사망 당시의 Rotation을 유지해서, 리스폰되자마자 충돌이 발생함.
 

@@ -28,7 +28,7 @@ public:
 	AFFPawn();
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerMoveForward(FVector NewLocation, FVector NewVelocity);
+	void ServerMoveForward(FVector NewLocation, FVector NewVelocity, FRotator NewRotation);
 
 protected:
 	// Called when the game starts or when spawned
@@ -167,6 +167,9 @@ private:
 
 	UPROPERTY(Replicated)
 	FVector ReplicatedVelocity;
+
+	UPROPERTY(Replicated)
+	FRotator ReplicatedRotation;
 
 
 };
