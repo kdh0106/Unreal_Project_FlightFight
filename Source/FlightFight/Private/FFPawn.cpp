@@ -25,6 +25,7 @@ AFFPawn::AFFPawn()
     //SetReplicateMovement(true);*/
     bReplicates = true;
     SetReplicateMovement(true);
+    bAlwaysRelevant = true; // Pawn을 항상 관련있게 설정
 
     Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MESH")); 
     Mesh_Death = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MESH_DEATH"));
@@ -46,7 +47,7 @@ AFFPawn::AFFPawn()
         ThrusterEffect_Left->SetAsset(THRUSTER_EFFECT_LEFT.Object);
     }
 
-    static ConstructorHelpers::FObjectFinder<UNiagaraSystem>THRUSTER_EFFECT_RIGHT(TEXT("/Game/Book/FX  /NS_West_Fighter_Typhoon_Jet.NS_West_Fighter_Typhoon_Jet"));
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem>THRUSTER_EFFECT_RIGHT(TEXT("/Game/Book/FX/NS_West_Fighter_Typhoon_Jet.NS_West_Fighter_Typhoon_Jet"));
     if (THRUSTER_EFFECT_RIGHT.Succeeded())
     {
         ThrusterEffect_Right->SetAsset(THRUSTER_EFFECT_RIGHT.Object);
@@ -201,12 +202,17 @@ void AFFPawn::BeginPlay()
 
 void AFFPawn::PostInitializeComponents()
 {
-    Super::PostInitializeComponents();  //오버라이드 하고 이거 안해주면 오류발생
+    Super::PostInitializeComponents();  //오버라이드 하고 이거 안해주면 오류발생(Super)
 
     OnHPIsZero.AddLambda([this]() -> void {
         ABLOG(Warning, TEXT("HP is Zero!!!"));
-        SpawnDeathEffect();
+        MulticastSpawnDeathEffect();
         });
+
+    if (GetLocalRole() == ROLE_Authority)  //서버에서만 실행
+    {
+        NetUpdateFrequency = 60.0f; //초당 60회 업데이트
+    }
 }
 
 // Called every frame
@@ -222,6 +228,7 @@ void AFFPawn::Tick(float DeltaTime)
 
     CameraLocation = Camera->GetComponentLocation();
 
+    //클라이언트 전용 함수 기능
     if (IsLocallyControlled())
     {
         ServerMoveForward(GetActorLocation(), Movement->Velocity, GetActorRotation());
@@ -246,6 +253,7 @@ void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
     PlayerInputComponent->BindAction(TEXT("Fire"), EInputEvent::IE_Released, this, &AFFPawn::StopShooting);
 }
 
+ //리플리케이트 된 프로퍼티
 void AFFPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
@@ -253,6 +261,7 @@ void AFFPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeP
     DOREPLIFETIME(AFFPawn, ReplicatedLocation);
     DOREPLIFETIME(AFFPawn, ReplicatedVelocity);
     DOREPLIFETIME(AFFPawn, ReplicatedRotation);
+    DOREPLIFETIME(AFFPawn, CurrentHP);
 } 
 
 
@@ -291,25 +300,25 @@ void AFFPawn::MoveForward(float NewAxisValue)
     if (Movement)
     {
         AddMovementInput(GetActorForwardVector(), NewAxisValue);
-    //   
-    //    if (NewAxisValue > 0.0f)
-    //    {
-    //        ThrusterEffect_Left->Activate();
-    //        ThrusterEffect_Right->Activate();
-    //        TrailEffect_Left->Activate();
-    //        TrailEffect_Right->Activate();
-    //        TrailEffect_WRight->Activate();
-    //        TrailEffect_WLeft->Activate();
-    //    }
-    //    else
-    //    {
-    //        ThrusterEffect_Left->Deactivate();
-    //        ThrusterEffect_Right->Deactivate();
-    //        TrailEffect_Left->Deactivate();
-    //        TrailEffect_Right->Deactivate();
-    //        TrailEffect_WRight->Deactivate();
-    //        TrailEffect_WLeft->Deactivate();
-    //    }
+       
+        if (NewAxisValue > 0.0f)
+        {
+            ThrusterEffect_Left->Activate();
+            ThrusterEffect_Right->Activate();
+            TrailEffect_Left->Activate();
+            TrailEffect_Right->Activate();
+            TrailEffect_WRight->Activate();
+            TrailEffect_WLeft->Activate();
+        }
+        else
+        {
+            ThrusterEffect_Left->Deactivate();
+            ThrusterEffect_Right->Deactivate();
+            TrailEffect_Left->Deactivate();
+            TrailEffect_Right->Deactivate();
+            TrailEffect_WRight->Deactivate();
+            TrailEffect_WLeft->Deactivate();
+        }
     }
 }
 
@@ -395,7 +404,7 @@ void AFFPawn::ShootBullet()
     }
 }
 
-void AFFPawn::SpawnBullet(const FVector& Location, const FRotator& Rotation)
+void AFFPawn::SpawnBullet_Implementation(const FVector& Location, const FRotator& Rotation)
 {
     AActor* SpawnedBullet = GetWorld()->SpawnActor<AActor>(BulletActorClass, Location, Rotation);
     if (SpawnedBullet)
@@ -416,7 +425,7 @@ void AFFPawn::SpawnBullet(const FVector& Location, const FRotator& Rotation)
 void AFFPawn::StopShooting()
 {
     if (ShootingTimerHandle.IsValid())
-    {
+    { 
         GetWorld()->GetTimerManager().ClearTimer(ShootingTimerHandle);  //타이머를 정지
         ShootingTimerHandle.Invalidate();                               //핸들을 무효화하여 타이머가 더 이상 실행되지 않도록
     }
@@ -430,23 +439,17 @@ void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AA
         {
             AActor* Bullet = Cast<AActor>(OtherActor);
             if (Bullet && Bullet->GetInstigator() != this) {
-                float NewHP = CurrentHP - 5.0f;
-                SetHP(NewHP);
-                ABLOG(Warning, TEXT("HP : %f"), CurrentHP);
-                if (CurrentHP < KINDA_SMALL_NUMBER)
-                {
-                    OnHPIsZero.Broadcast();
-                }
+                ServerTakeDamage(5.0f);
             }
         }
         else if (OtherActor && OtherActor->GetClass()->GetName().Contains(TEXT("Landscape")))
         {
-            SpawnDeathEffect(); 
+            MulticastSpawnDeathEffect(); 
         }
         //추후 적 기체와의 충돌 시 사망 추가 예정
     }
 }
-
+ 
 void AFFPawn::SpawnDeathEffect()
 {
     if (DeathParticleSystem)
@@ -496,7 +499,7 @@ void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함.
 
 void AFFPawn::UpdateHPBar()
 {
-    auto HPWidget = Cast<UFFHPBarWidget>(HPBarWidget->GetUserWidgetObject());
+    auto HPWidget = Cast<UFFHPBarWidget>(HPBarWidget->GetUserWidgetObject()); 
     if (HPWidget)
     {
         ABLOG(Warning, TEXT("sucex!"));
@@ -504,12 +507,47 @@ void AFFPawn::UpdateHPBar()
     }
     else
     {
-        ABLOG(Warning, TEXT("MM..."))
+        ABLOG(Warning, TEXT("MM..."));
     }
 }
 
 void AFFPawn::SetHP(float NewHP)
 {
-    CurrentHP = FMath::Clamp(NewHP, 0, MaxHP);
+    CurrentHP = NewHP;
+    OnRep_CurrentHP();
+}
+
+void AFFPawn::OnRep_CurrentHP()
+{
     UpdateHPBar();
+}
+
+void AFFPawn::ServerTakeDamage_Implementation(float Damage)
+{
+    if (GetLocalRole() == ROLE_Authority)
+    {
+        float NewHP = FMath::Max(CurrentHP - Damage, 0.0f);
+        SetHP(NewHP);
+        ABLOG(Warning, TEXT("HP : %f"), CurrentHP);
+        if (CurrentHP <= KINDA_SMALL_NUMBER) //KINDA_SMALL_NUMBER
+        {
+            ABLOG(Warning, TEXT("HP is WTF!!"));
+            OnHPIsZero.Broadcast();
+        }
+    }
+}
+
+bool AFFPawn::ServerTakeDamage_Validate(float Damage)
+{
+    return Damage > 0;
+}
+
+void AFFPawn::MulticastSpawnDeathEffect_Implementation()
+{
+    SpawnDeathEffect();
+}
+
+bool AFFPawn::IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const
+{
+    return true; //항상 네트워크 관련성이 있다고 반환
 }

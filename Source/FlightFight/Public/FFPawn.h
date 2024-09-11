@@ -30,6 +30,15 @@ public:
 	UFUNCTION(Server, Reliable, WithValidation)
 	void ServerMoveForward(FVector NewLocation, FVector NewVelocity, FRotator NewRotation);
 
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerTakeDamage(float Damage);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastSpawnDeathEffect();
+
+	// 네트워크 관련성 오버라이드
+	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -38,9 +47,9 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 	virtual void PostInitializeComponents() override;
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;  //프로퍼티 리플리케이션
 
-	// Called to bind functionality to input
+	// Called to bind functionality to input 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	UFUNCTION()
@@ -136,9 +145,13 @@ private:
 	
 	void Fire();
 	void ShootBullet();
+
+	UFUNCTION(Server, Reliable)
 	void SpawnBullet(const FVector& Location, const FRotator& Rotation);
+
 	void StopShooting();
 	void SpawnDeathEffect();
+
 	void RespawnActor();
 	void UpdateHPBar();
 	void SetHP(float NewHP);
@@ -149,8 +162,11 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Stats", Meta = (AllowPrivateAccess = true))
 	float MaxHP;
 
-	UPROPERTY(EditAnywhere, Category = "Stats", Meta = (AllowPrivateAccess = true))
+	UPROPERTY(VisibleAnywhere, Category = "Stats", ReplicatedUsing = OnRep_CurrentHP, Meta = (AllowPrivateAccess = true))
 	float CurrentHP;
+
+	UFUNCTION()
+	void OnRep_CurrentHP();
 
 	UPROPERTY(EditAnywhere, Category = "Effects")
 	UParticleSystem* DeathParticleSystem;
