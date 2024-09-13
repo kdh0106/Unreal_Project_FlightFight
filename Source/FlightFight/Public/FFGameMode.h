@@ -16,4 +16,6 @@ class FLIGHTFIGHT_API AFFGameMode : public AGameModeBase
 	
 public:
 	AFFGameMode();
+
+	void RestartPlayer(AController* NewPlayer);
 };

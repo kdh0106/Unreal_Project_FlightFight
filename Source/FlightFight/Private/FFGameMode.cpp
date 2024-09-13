@@ -13,3 +13,19 @@ AFFGameMode::AFFGameMode()
 	PlayerControllerClass = AFFPlayerController::StaticClass();
 }
 
+void AFFGameMode::RestartPlayer(AController* NewPlayer)
+{
+	if (NewPlayer == nullptr)
+	{
+		return;
+	}
+
+	AActor* StartSpot = FindPlayerStart(NewPlayer);
+	if (StartSpot != nullptr)
+	{
+		FVector Location = StartSpot->GetActorLocation();
+		FRotator Rotation = StartSpot->GetActorRotation();
+
+		FActorSpawnParameters SpawnParams;
+	}
+}

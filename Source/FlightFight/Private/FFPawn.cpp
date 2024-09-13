@@ -22,7 +22,6 @@ AFFPawn::AFFPawn()
     PrimaryActorTick.bCanEverTick = true;
    
     SetReplicates(true);
-    //SetReplicateMovement(true);*/
     bReplicates = true;
     SetReplicateMovement(true);
     bAlwaysRelevant = true; // Pawn을 항상 관련있게 설정
@@ -480,7 +479,6 @@ void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함.
     if (GetController())
     {
         GetController()->SetControlRotation(SpawnRotation);  //SetActorRotation으로는 안됨.
-        ABLOG(Warning, TEXT("Getto!!"));
     }
 
     SetActorLocation(SpawnLocation);
@@ -488,7 +486,7 @@ void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함.
 
     Mesh->SetVisibility(true);
     Mesh_Death->SetVisibility(false);
-    SetActorEnableCollision(true);
+    SetActorEnableCollision(true); 
     SetHP(MaxHP);
 
     Movement->SetActive(true); 
@@ -504,7 +502,7 @@ void AFFPawn::UpdateHPBar()
     {
         ABLOG(Warning, TEXT("sucex!"));
         HPWidget->UpdateHPBarWidget(CurrentHP, MaxHP);
-    }
+    }  
     else
     {
         ABLOG(Warning, TEXT("MM..."));
