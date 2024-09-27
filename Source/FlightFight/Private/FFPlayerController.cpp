@@ -15,3 +15,8 @@ void AFFPlayerController::BeginPlay()
 	PlayerCameraManager->ViewRollMin = -179.99f;
 	PlayerCameraManager->ViewRollMax = 179.99f;
 }
+
+void AFFPlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+}

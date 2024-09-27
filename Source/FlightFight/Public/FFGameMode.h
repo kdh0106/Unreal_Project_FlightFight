@@ -4,6 +4,7 @@
 
 #include "FlightFight.h"
 #include "GameFramework/GameModeBase.h"
+#include "GameFramework/PlayerStart.h"
 #include "FFGameMode.generated.h"
 
 /**
@@ -17,5 +18,21 @@ class FLIGHTFIGHT_API AFFGameMode : public AGameModeBase
 public:
 	AFFGameMode();
 
-	void RestartPlayer(AController* NewPlayer);
+	virtual void PostLogin(APlayerController* NewPlayer) override;
+	//virtual AActor* FindPlayerStart_Implementation(AController* Player, const FString& IncomingName) override;
+	virtual void RestartPlayer(AController* NewPlayer) override;
+	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+
+private:
+	TArray<AActor*> UsedPlayerStarts;
+	TSet<AController*> SpawnedPlayers;
+	bool bIsListenServerHost;
+
+	bool SpawnPlayerPawnIfNeeded(AController* NewPlayer, AActor* StartSpot);
+
+	//TMap<AController*, AActor*> PlayerToStartMap;
+	int32 NextPlayerIndex;
+
+	//void AssignPlayerStart(AController* Player);*/
+	//void SpawnAndPossessPawn(AController* NewPlayer);
 };

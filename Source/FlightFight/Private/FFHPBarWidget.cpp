@@ -11,7 +11,7 @@ void UFFHPBarWidget::UpdateHPBarWidget(float CurrentHP, float MaxHP)
 	{
 		float HPPercent = CurrentHP / MaxHP;
 		HPProgressBar->SetPercent(HPPercent);
-		ABLOG(Warning, TEXT("HP Bar Percent = %f"), HPPercent);
+		//ABLOG(Warning, TEXT("HP Bar Percent = %f"), HPPercent);
 
 		FLinearColor BarColor;
 

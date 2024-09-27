@@ -16,4 +16,5 @@ class FLIGHTFIGHT_API AFFPlayerController : public APlayerController
 	
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnPossess(APawn* InPawn) override;
 };

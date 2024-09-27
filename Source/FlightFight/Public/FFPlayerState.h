@@ -15,6 +15,6 @@ class FLIGHTFIGHT_API AFFPlayerState : public APlayerState
 	GENERATED_BODY()
 	
 public:
-	UPROPERTY(Replicated)
-	FVector InitialSpawnLocation;
+	/*UPROPERTY(Replicated)
+	FVector InitialSpawnLocation;*/
 };

@@ -154,9 +154,6 @@ AFFPawn::AFFPawn()
     CurrentHP = MaxHP;
     SetHP(CurrentHP);
 
-    SpawnLocation = FVector(4704.808635f, 4434.708254f, 432.5002f);
-    SpawnRotation = FRotator(0.0f, 45.0f, 0.0f);
-
     static ConstructorHelpers::FClassFinder<UUserWidget>AimWidget(TEXT("/Game/Book/UI/UI_Aim.UI_Aim_C"));
     if (AimWidget.Succeeded())
     {
@@ -180,7 +177,9 @@ void AFFPawn::BeginPlay()
     
     UpdateHPBar();
 
-    SetActorLocation(SpawnLocation);  //Box의 Z축 크기만큼 Mesh에서 -값을 해줘야 한다.  / 0, 0, 320
+    //SpawnLocation = GetActorLocation(); // FVector(4704.808635f, 4434.708254f, 432.5002f); AssignPlayerStart실험(밑에도)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //SpawnRotation = GetActorRotation(); // FRotator(0.0f, 45.0f, 0.0f);
+    //SetActorLocation(SpawnLocation);  //Box의 Z축 크기만큼 Mesh에서 -값을 해줘야 한다.  / 0, 0, 320
 
     if (ThrusterEffect_Left && ThrusterEffect_Right)
     {
@@ -197,6 +196,45 @@ void AFFPawn::BeginPlay()
     }
 
    FFPlayerController = Cast<AFFPlayerController>(GetController());
+
+   //if (FFPlayerController && FFPlayerController->IsLocalController())  //200~236 for Debug
+   //{
+   //    ABLOG(Warning, TEXT("Controller %s is local and now possess Pawn %s"), *FFPlayerController->GetName(), *this->GetName());
+   //}
+   //else
+   //{
+   //    ABLOG(Error, TEXT("Controller is not local or not set apd"));
+   //}
+
+   //if (HasAuthority())
+   //{
+   //    ABLOG(Warning, TEXT("Pawn has authority (Server)."));
+   //}
+   //else
+   //{
+   //    ABLOG(Warning, TEXT("Pawn is client-controlled"));
+   //}
+
+   //if (GetOwner())  // 소유자가 있는지 확인
+   //{
+   //    ABLOG(Warning, TEXT("Pawn is owned by: %s"), *GetOwner()->GetName());
+   //}
+   //else
+   //{
+   //    ABLOG(Error, TEXT("Pawn does not have an owner!"));
+   //}
+
+   //// 컨트롤러 소유 여부 확인
+   //AController* LocalController = GetController();
+   //if (LocalController && IsOwnedBy(LocalController))
+   //{
+   //    ABLOG(Warning, TEXT("Pawn is properly possessed by its controller."));
+   //}
+   //else
+   //{
+   //    ABLOG(Error, TEXT("Pawn is not possessed by a controller!"));
+   //}
+
 }
 
 void AFFPawn::PostInitializeComponents()
@@ -204,7 +242,6 @@ void AFFPawn::PostInitializeComponents()
     Super::PostInitializeComponents();  //오버라이드 하고 이거 안해주면 오류발생(Super)
 
     OnHPIsZero.AddLambda([this]() -> void {
-        ABLOG(Warning, TEXT("HP is Zero!!!"));
         MulticastSpawnDeathEffect();
         });
 
@@ -217,7 +254,7 @@ void AFFPawn::PostInitializeComponents()
 // Called every frame
 void AFFPawn::Tick(float DeltaTime)
 {
-    Super::Tick(DeltaTime); 
+    Super::Tick(DeltaTime);  
     CurrentSpeed = this->GetVelocity().Size();
 
     ShootSocketLocation_L = Mesh->GetSocketLocation(ShootSocket1);
@@ -256,7 +293,7 @@ void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 void AFFPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-    //DOREPLIFETIME(AFFPawn, Movement);
+    DOREPLIFETIME(AFFPawn, Movement);
     DOREPLIFETIME(AFFPawn, ReplicatedLocation);
     DOREPLIFETIME(AFFPawn, ReplicatedVelocity);
     DOREPLIFETIME(AFFPawn, ReplicatedRotation);
@@ -476,6 +513,7 @@ void AFFPawn::SpawnDeathEffect()
 
 void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함. 
 {
+    //여기서 HasAuthority 했더니 클라이언트에서 리스폰되고 조종이 안됨.
     if (GetController())
     {
         GetController()->SetControlRotation(SpawnRotation);  //SetActorRotation으로는 안됨.
@@ -486,10 +524,10 @@ void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함.
 
     Mesh->SetVisibility(true);
     Mesh_Death->SetVisibility(false);
-    SetActorEnableCollision(true); 
+    SetActorEnableCollision(true);
     SetHP(MaxHP);
 
-    Movement->SetActive(true); 
+    Movement->SetActive(true);
     Movement->Velocity = FVector::ZeroVector;  //이걸 안해주니, 전에 남아있던 속도 때문에 리스폰되자마자 혼자서 움직임.
     EnableInput(FFPlayerController);
 
@@ -500,13 +538,8 @@ void AFFPawn::UpdateHPBar()
     auto HPWidget = Cast<UFFHPBarWidget>(HPBarWidget->GetUserWidgetObject()); 
     if (HPWidget)
     {
-        ABLOG(Warning, TEXT("sucex!"));
         HPWidget->UpdateHPBarWidget(CurrentHP, MaxHP);
     }  
-    else
-    {
-        ABLOG(Warning, TEXT("MM..."));
-    }
 }
 
 void AFFPawn::SetHP(float NewHP)
@@ -517,21 +550,20 @@ void AFFPawn::SetHP(float NewHP)
 
 void AFFPawn::OnRep_CurrentHP()
 {
-    UpdateHPBar();
+    UpdateHPBar(); 
 }
 
 void AFFPawn::ServerTakeDamage_Implementation(float Damage)
 {
-    if (GetLocalRole() == ROLE_Authority)
+    if (GetLocalRole() == ROLE_Authority) 
     {
         float NewHP = FMath::Max(CurrentHP - Damage, 0.0f);
         SetHP(NewHP);
-        ABLOG(Warning, TEXT("HP : %f"), CurrentHP);
-        if (CurrentHP <= KINDA_SMALL_NUMBER) //KINDA_SMALL_NUMBER
+        if (CurrentHP <= KINDA_SMALL_NUMBER)
         {
-            ABLOG(Warning, TEXT("HP is WTF!!"));
             OnHPIsZero.Broadcast();
         }
+        ABLOG(Warning, TEXT("Damage!"));
     }
 }
 
@@ -548,4 +580,13 @@ void AFFPawn::MulticastSpawnDeathEffect_Implementation()
 bool AFFPawn::IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const
 {
     return true; //항상 네트워크 관련성이 있다고 반환
+}
+
+void AFFPawn::SetSpawnLocationAndRotation(FVector Location, FRotator Rotation)
+{
+    if (HasAuthority())
+    {
+        SpawnLocation = Location;
+        SpawnRotation = Rotation;
+    }
 }

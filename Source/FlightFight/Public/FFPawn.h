@@ -38,6 +38,7 @@ public:
 
 	// 네트워크 관련성 오버라이드
 	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;
+	void SetSpawnLocationAndRotation(FVector Location, FRotator Rotation);
 
 protected:
 	// Called when the game starts or when spawned
