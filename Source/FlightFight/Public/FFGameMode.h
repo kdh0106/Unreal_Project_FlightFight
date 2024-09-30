@@ -5,6 +5,7 @@
 #include "FlightFight.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/PlayerStart.h"
+#include "EngineUtils.h"
 #include "FFGameMode.generated.h"
 
 /**
@@ -29,6 +30,8 @@ private:
 	bool bIsListenServerHost;
 
 	bool SpawnPlayerPawnIfNeeded(AController* NewPlayer, AActor* StartSpot);
+
+	void LogPlayerStarts();
 
 	//TMap<AController*, AActor*> PlayerToStartMap;
 	int32 NextPlayerIndex;

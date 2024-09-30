@@ -21,6 +21,7 @@ AFFGameMode::AFFGameMode()
 void AFFGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
+	LogPlayerStarts();
 	//AssignPlayerStart(NewPlayer);
 
 	/*if (GetNetMode() == NM_ListenServer && !bIsListenServerHost)
@@ -46,16 +47,23 @@ void AFFGameMode::PostLogin(APlayerController* NewPlayer)
 AActor* AFFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
 	TArray<AActor*> AvailablePlayerStarts;
-	if (AvailablePlayerStarts.Num() == 0)
+	for (TActorIterator<APlayerStart> It(GetWorld()); It; ++It)
 	{
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), AvailablePlayerStarts);
+		APlayerStart* PlayerStart = *It;
+		if (!UsedPlayerStarts.Contains(PlayerStart))
+		{
+			AvailablePlayerStarts.Add(PlayerStart);
+		}
 	}
 
 	if (AvailablePlayerStarts.Num() > 0)
 	{
 		int32 StartIndex = NextPlayerIndex % AvailablePlayerStarts.Num();
+		int32 AvailableNum = AvailablePlayerStarts.Num();
 		AActor* ChosenPlayerStart = AvailablePlayerStarts[StartIndex];
+		ABLOG(Warning, TEXT("AvailablePS : %d, StartIndex : %d, NextPlayerIndex : %d"), AvailableNum, StartIndex, NextPlayerIndex);
 		UsedPlayerStarts.Add(ChosenPlayerStart);
+		ABLOG(Warning, TEXT("Chosen PS : %s"), *ChosenPlayerStart->GetActorLocation().ToString());
 		NextPlayerIndex++;
 		return ChosenPlayerStart;
 	}
@@ -146,13 +154,13 @@ bool AFFGameMode::SpawnPlayerPawnIfNeeded(AController* NewPlayer, AActor* StartS
 		// 이미 Pawn이 있는 경우, 위치만 조정
 		NewPlayer->GetPawn()->SetActorLocation(StartSpot->GetActorLocation());
 		NewPlayer->GetPawn()->SetActorRotation(StartSpot->GetActorRotation());
-		UE_LOG(LogTemp, Log, TEXT("Existing pawn repositioned for player at %s"), *StartSpot->GetActorLocation().ToString());
+		ABLOG(Warning, TEXT("Existing pawn repositioned for player at %s"), *StartSpot->GetActorLocation().ToString());
 		return true;
 	}
-
+	 
 	if (SpawnedPlayers.Contains(NewPlayer))
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Player already spawned, but no pawn found. This shouldn't happen."));
+		ABLOG(Warning, TEXT("Player already spawned, but no pawn found. This shouldn't happen."));
 		return false;
 	}
 
@@ -172,7 +180,18 @@ bool AFFGameMode::SpawnPlayerPawnIfNeeded(AController* NewPlayer, AActor* StartS
 	else
 	{
 		ABLOG(Error, TEXT("Failed to spawn pawn at %s"), *StartSpot->GetActorLocation().ToString());
-		return false;
+		return false;                     
+	}
+}
+
+void AFFGameMode::LogPlayerStarts()
+{
+	ABLOG(Warning, TEXT("Logging all PlayerStarts!"));
+	for (TActorIterator<APlayerStart>It(GetWorld()); It; ++It)
+	{
+		APlayerStart* PlayerStart = *It;
+		ABLOG(Warning, TEXT("PlayerStart: %s at location %s"),
+			*PlayerStart->GetName(), *PlayerStart->GetActorLocation().ToString());
 	}
 }
 

@@ -271,10 +271,13 @@ void AFFPawn::Tick(float DeltaTime)
     }
     else
     {
-        SetActorLocation(FMath::VInterpTo(GetActorLocation(), ReplicatedLocation, DeltaTime, 10.0f));
-        SetActorRotation(ReplicatedRotation);
+        //SetActorLocation(FMath::VInterpTo(GetActorLocation(), ReplicatedLocation, DeltaTime, 10.0f));
+        //ABLOG(Warning, TEXT("replicated location %s"), *ReplicatedLocation.ToString());
+        //SetActorRotation(ReplicatedRotation);
         Movement->Velocity = ReplicatedVelocity;
     }
+
+    //ABLOG(Warning, TEXT("Tick print locatin "))
 }
 
 void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -519,8 +522,8 @@ void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함.
         GetController()->SetControlRotation(SpawnRotation);  //SetActorRotation으로는 안됨.
     }
 
-    SetActorLocation(SpawnLocation);
-    SetActorRotation(SpawnRotation); //이걸 해주지 않으면 리스폰될때 잠깐동안 사망 당시의 Rotation을 유지해서, 리스폰되자마자 충돌이 발생함.
+    //SetActorLocation(SpawnLocation);
+    //SetActorRotation(SpawnRotation); //이걸 해주지 않으면 리스폰될때 잠깐동안 사망 당시의 Rotation을 유지해서, 리스폰되자마자 충돌이 발생함.
 
     Mesh->SetVisibility(true);
     Mesh_Death->SetVisibility(false);
