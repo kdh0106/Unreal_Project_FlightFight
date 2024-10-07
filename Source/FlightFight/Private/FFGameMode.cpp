@@ -18,57 +18,78 @@ AFFGameMode::AFFGameMode()
 	NextPlayerIndex = 0;
 }
 
+void AFFGameMode::InitializePlayerStarts()
+{
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), PlayerStartsActors);
+
+	for (AActor* Actor : PlayerStartsActors)
+	{
+		APlayerStart* PlayerStart = Cast<APlayerStart>(Actor);
+		if (PlayerStart)
+		{
+			PlayerStarts.Add(PlayerStart);
+		}
+	}
+
+	PlayerStarts.Sort([](const APlayerStart& A, const APlayerStart& B) {
+		return A.GetName() < B.GetName();
+		});
+}
+
 void AFFGameMode::PostLogin(APlayerController* NewPlayer)
 {
 	Super::PostLogin(NewPlayer);
+	ChoosePlayerStart(NewPlayer);
 	LogPlayerStarts();
-	//AssignPlayerStart(NewPlayer);
-
-	/*if (GetNetMode() == NM_ListenServer && !bIsListenServerHost)
-	{
-		bIsListenServerHost = true;
-		RestartPlayer(NewPlayer);
-	}*/
-	/*else
-	{
-		AActor* StartSpot = ChoosePlayerStart_Implementation(NewPlayer);
-		if (StartSpot)
-		{
-			SpawnPlayerPawn(NewPlayer, StartSpot);
-		}
-	}*/
-	if (!SpawnedPlayers.Contains(NewPlayer))
-	{
-		RestartPlayer(NewPlayer);
-	}
-
 }
+
+int32 AFFGameMode::GetPlayerIndex(AController* Player) const
+{
+	if (Player == nullptr)
+		return -1;
+
+	APlayerState* PlayerState = Player->GetPlayerState<APlayerState>();
+	if (PlayerState == nullptr)
+		return -1;
+
+	return GameState->PlayerArray.IndexOfByPredicate([PlayerState](const APlayerState* PS) {
+		return PS == PlayerState;
+		});
+}
+
 
 AActor* AFFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
-	TArray<AActor*> AvailablePlayerStarts;
-	for (TActorIterator<APlayerStart> It(GetWorld()); It; ++It)
+	if (PlayerStarts.Num() == 0)
 	{
-		APlayerStart* PlayerStart = *It;
-		if (!UsedPlayerStarts.Contains(PlayerStart))
-		{
-			AvailablePlayerStarts.Add(PlayerStart);
-		}
+		InitializePlayerStarts();
 	}
 
-	if (AvailablePlayerStarts.Num() > 0)
+	if (PlayerStarts.Num() < 2)
 	{
-		int32 StartIndex = NextPlayerIndex % AvailablePlayerStarts.Num();
-		int32 AvailableNum = AvailablePlayerStarts.Num();
-		AActor* ChosenPlayerStart = AvailablePlayerStarts[StartIndex];
-		ABLOG(Warning, TEXT("AvailablePS : %d, StartIndex : %d, NextPlayerIndex : %d"), AvailableNum, StartIndex, NextPlayerIndex);
-		UsedPlayerStarts.Add(ChosenPlayerStart);
-		ABLOG(Warning, TEXT("Chosen PS : %s"), *ChosenPlayerStart->GetActorLocation().ToString());
-		NextPlayerIndex++;
-		return ChosenPlayerStart;
+		UE_LOG(LogTemp, Warning, TEXT("Not enough PlayerStarts in the level!"));
+		return nullptr;
 	}
 
-	return Super::ChoosePlayerStart_Implementation(Player);
+	if (APlayerStart** FoundStart = PlayerStartMap.Find(Player))
+	{
+		return *FoundStart;
+	}
+	// Player의 인덱스를 확인 (0 또는 1)
+	int32 PlayerIndex = GetPlayerIndex(Player);
+	ABLOG(Warning, TEXT("PlayerIndex is : %d"), PlayerIndex);
+
+	// 플레이어 인덱스에 따라 적절한 PlayerStart 반환
+	if (PlayerIndex == 0 || PlayerIndex == 1)
+	{
+		APlayerStart* Start = PlayerStarts[PlayerIndex];
+		PlayerStartMap.Add(Player, Start);
+		return Start;
+	}
+
+	// 예상치 못한 경우, 첫 번째 PlayerStart 반환
+	UE_LOG(LogTemp, Warning, TEXT("Unexpected player index. Using first PlayerStart."));
+	return PlayerStarts[0];
 }
 
 //void AFFGameMode::AssignPlayerStart(AController* Player)
@@ -130,20 +151,39 @@ AActor* AFFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 
 void AFFGameMode::RestartPlayer(AController* NewPlayer)
 {
-	if (!IsValid(NewPlayer))
+	if (NewPlayer == nullptr || NewPlayer->IsPendingKill())
 	{
-		ABLOG(Error, TEXT("RestartPlayer: Invalid player controller"));
 		return;
 	}
 
-	AActor* StartSpot = ChoosePlayerStart_Implementation(NewPlayer);
-	if (StartSpot)
+	AActor* StartSpot = ChoosePlayerStart(NewPlayer);
+
+	if (StartSpot == nullptr)
 	{
-		SpawnPlayerPawnIfNeeded(NewPlayer, StartSpot);
+		ABLOG(Warning, TEXT("Failed to find PlayerStart!"));
+		return;
 	}
-	else
+
+	// 기존 Pawn 제거
+	if (NewPlayer->GetPawn() != nullptr)
 	{
-		ABLOG(Warning, TEXT("Failed to find PlayerStarst for player restart"));
+		NewPlayer->GetPawn()->Destroy();
+	}
+
+	// 새 Pawn 스폰
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	APawn* NewPawn = GetWorld()->SpawnActor<APawn>(DefaultPawnClass, StartSpot->GetTransform(), SpawnParams);
+	
+	FTransform ActorTransform = StartSpot->GetTransform();
+	ABLOG(Warning, TEXT("Actor Transform: %s"), *ActorTransform.ToString());
+
+	NewPawn->SetActorRotation(FRotator(0.0f, 0.0f, 0.0f));
+	NewPlayer->SetControlRotation(FRotator(0.0f, 0.0f, 0.0f));
+
+	if (NewPawn != nullptr)
+	{
+		NewPlayer->Possess(NewPawn);
 	}
 }
 
@@ -180,7 +220,7 @@ bool AFFGameMode::SpawnPlayerPawnIfNeeded(AController* NewPlayer, AActor* StartS
 	else
 	{
 		ABLOG(Error, TEXT("Failed to spawn pawn at %s"), *StartSpot->GetActorLocation().ToString());
-		return false;                     
+		return false;
 	}
 }
 

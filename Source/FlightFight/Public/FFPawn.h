@@ -10,6 +10,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "TimerManager.h"
 #include "FFPlayerController.h"
+#include "FFGameMode.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/WidgetComponent.h"
 #include "FFHPBarWidget.h"

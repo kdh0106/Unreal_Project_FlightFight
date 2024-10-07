@@ -24,7 +24,7 @@ AFFPawn::AFFPawn()
     SetReplicates(true);
     bReplicates = true;
     SetReplicateMovement(true);
-    bAlwaysRelevant = true; // Pawn을 항상 관련있게 설정
+    bAlwaysRelevant = true; // Pawn을 항상 관련있게 설정 - 해주지 않으면 일정 거리 이상 멀어지면 안보임
 
     Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MESH")); 
     Mesh_Death = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MESH_DEATH"));
@@ -516,24 +516,28 @@ void AFFPawn::SpawnDeathEffect()
 
 void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함. 
 {
-    //여기서 HasAuthority 했더니 클라이언트에서 리스폰되고 조종이 안됨.
-    if (GetController())
+    ////여기서 HasAuthority 했더니 클라이언트에서 리스폰되고 조종이 안됨.
+    //if (GetController())
+    //{
+    //    GetController()->SetControlRotation(SpawnRotation);  //SetActorRotation으로는 안됨.
+    //}
+
+    ////SetActorLocation(SpawnLocation);
+    ////SetActorRotation(SpawnRotation); //이걸 해주지 않으면 리스폰될때 잠깐동안 사망 당시의 Rotation을 유지해서, 리스폰되자마자 충돌이 발생함.
+
+    //Mesh->SetVisibility(true);
+    //Mesh_Death->SetVisibility(false);
+    //SetActorEnableCollision(true);
+    //SetHP(MaxHP);
+
+    //Movement->SetActive(true);
+    //Movement->Velocity = FVector::ZeroVector;  //이걸 안해주니, 전에 남아있던 속도 때문에 리스폰되자마자 혼자서 움직임.
+    //EnableInput(FFPlayerController);
+    AGameModeBase* GameMode = GetWorld()->GetAuthGameMode();
+    if (GameMode)
     {
-        GetController()->SetControlRotation(SpawnRotation);  //SetActorRotation으로는 안됨.
+        GameMode->RestartPlayer(GetController());
     }
-
-    //SetActorLocation(SpawnLocation);
-    //SetActorRotation(SpawnRotation); //이걸 해주지 않으면 리스폰될때 잠깐동안 사망 당시의 Rotation을 유지해서, 리스폰되자마자 충돌이 발생함.
-
-    Mesh->SetVisibility(true);
-    Mesh_Death->SetVisibility(false);
-    SetActorEnableCollision(true);
-    SetHP(MaxHP);
-
-    Movement->SetActive(true);
-    Movement->Velocity = FVector::ZeroVector;  //이걸 안해주니, 전에 남아있던 속도 때문에 리스폰되자마자 혼자서 움직임.
-    EnableInput(FFPlayerController);
-
 }
 
 void AFFPawn::UpdateHPBar()
