@@ -26,6 +26,7 @@ AFFPawn::AFFPawn()
     SetReplicateMovement(true);
     bAlwaysRelevant = true; // Pawn을 항상 관련있게 설정 - 해주지 않으면 일정 거리 이상 멀어지면 안보임
 
+
     Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MESH")); 
     Mesh_Death = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MESH_DEATH"));
     SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SPRINGARM"));
@@ -92,8 +93,6 @@ AFFPawn::AFFPawn()
     Mesh_Death->SetVisibility(false);
 
     HPBarWidget->SetupAttachment(Mesh);
-
-
 
     //SetActorLocation(FVector(0.0f, 0.0f, 0.0f));
    // BoxCollision->SetRelativeLocation(FVector(0.0f, 0.0f, 237.5f));
@@ -195,46 +194,8 @@ void AFFPawn::BeginPlay()
         TrailEffect_WRight->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetIncludingScale, TrailSocketW2);
     }
 
-   FFPlayerController = Cast<AFFPlayerController>(GetController());
-
-   //if (FFPlayerController && FFPlayerController->IsLocalController())  //200~236 for Debug
-   //{
-   //    ABLOG(Warning, TEXT("Controller %s is local and now possess Pawn %s"), *FFPlayerController->GetName(), *this->GetName());
-   //}
-   //else
-   //{
-   //    ABLOG(Error, TEXT("Controller is not local or not set apd"));
-   //}
-
-   //if (HasAuthority())
-   //{
-   //    ABLOG(Warning, TEXT("Pawn has authority (Server)."));
-   //}
-   //else
-   //{
-   //    ABLOG(Warning, TEXT("Pawn is client-controlled"));
-   //}
-
-   //if (GetOwner())  // 소유자가 있는지 확인
-   //{
-   //    ABLOG(Warning, TEXT("Pawn is owned by: %s"), *GetOwner()->GetName());
-   //}
-   //else
-   //{
-   //    ABLOG(Error, TEXT("Pawn does not have an owner!"));
-   //}
-
-   //// 컨트롤러 소유 여부 확인
-   //AController* LocalController = GetController();
-   //if (LocalController && IsOwnedBy(LocalController))
-   //{
-   //    ABLOG(Warning, TEXT("Pawn is properly possessed by its controller."));
-   //}
-   //else
-   //{
-   //    ABLOG(Error, TEXT("Pawn is not possessed by a controller!"));
-   //}
-
+   LastRotation = GetActorRotation();
+   ABLOG(Warning, TEXT("Pawn BeginPlay Rotation : %s"), *GetActorRotation().ToString());
 }
 
 void AFFPawn::PostInitializeComponents()
@@ -266,7 +227,7 @@ void AFFPawn::Tick(float DeltaTime)
 
     //클라이언트 전용 함수 기능
     if (IsLocallyControlled())
-    {
+    {  
         ServerMoveForward(GetActorLocation(), Movement->Velocity, GetActorRotation());
     }
     else
@@ -275,9 +236,20 @@ void AFFPawn::Tick(float DeltaTime)
         //ABLOG(Warning, TEXT("replicated location %s"), *ReplicatedLocation.ToString());
         //SetActorRotation(ReplicatedRotation);
         Movement->Velocity = ReplicatedVelocity;
-    }
+    } 
 
-    //ABLOG(Warning, TEXT("Tick print locatin "))
+    FRotator CurrentRotation = GetActorRotation();
+    if (!CurrentRotation.Equals(LastRotation, 0.01f))
+    {
+        ABLOG(Warning, TEXT("Pawn Rotation Changed: %s"), *CurrentRotation.ToString());
+        LastRotation = CurrentRotation;
+    }
+}
+
+void AFFPawn::PossessedBy(AController* NewController)
+{
+    Super::PossessedBy(NewController);
+    ABLOG(Warning, TEXT("Pawn PossessedBy Rotation : %s"), *GetActorRotation().ToString());
 }
 
 void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

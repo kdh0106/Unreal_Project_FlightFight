@@ -48,6 +48,7 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+	virtual void PossessedBy(AController* NewController) override;
 	virtual void PostInitializeComponents() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;  //프로퍼티 리플리케이션
 
@@ -189,5 +190,6 @@ private:
 	UPROPERTY(Replicated)
 	FRotator ReplicatedRotation;
 
+	FRotator LastRotation;
 
 };

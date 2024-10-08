@@ -151,7 +151,7 @@ AActor* AFFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 
 void AFFGameMode::RestartPlayer(AController* NewPlayer)
 {
-	if (NewPlayer == nullptr || NewPlayer->IsPendingKill())
+	if (!IsValid(NewPlayer))
 	{
 		return;
 	}
@@ -160,9 +160,13 @@ void AFFGameMode::RestartPlayer(AController* NewPlayer)
 
 	if (StartSpot == nullptr)
 	{
-		ABLOG(Warning, TEXT("Failed to find PlayerStart!"));
+		//ABLOG(Warning, TEXT("Failed to find PlayerStart!"));
 		return;
 	}
+
+	//선택된 PlayerStart 정보
+	//ABLOG(Warning, TEXT("RestartPlayer: Selected PlayerStart Location: %s, Rotation: %s"),
+	//	*StartSpot->GetActorLocation().ToString(), *StartSpot->GetActorRotation().ToString());
 
 	// 기존 Pawn 제거
 	if (NewPlayer->GetPawn() != nullptr)
@@ -170,20 +174,31 @@ void AFFGameMode::RestartPlayer(AController* NewPlayer)
 		NewPlayer->GetPawn()->Destroy();
 	}
 
+	FTransform SpawnTransform = StartSpot->GetActorTransform();
 	// 새 Pawn 스폰
 	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-	APawn* NewPawn = GetWorld()->SpawnActor<APawn>(DefaultPawnClass, StartSpot->GetTransform(), SpawnParams);
-	
-	FTransform ActorTransform = StartSpot->GetTransform();
-	ABLOG(Warning, TEXT("Actor Transform: %s"), *ActorTransform.ToString());
-
-	NewPawn->SetActorRotation(FRotator(0.0f, 0.0f, 0.0f));
-	NewPlayer->SetControlRotation(FRotator(0.0f, 0.0f, 0.0f));
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	APawn* NewPawn = GetWorld()->SpawnActor<APawn>(DefaultPawnClass, SpawnTransform, SpawnParams);
 
 	if (NewPawn != nullptr)
 	{
+		NewPawn->SetActorLocationAndRotation(SpawnTransform.GetLocation(), SpawnTransform.GetRotation());
+
+		// 로그 추가: 스폰된 Pawn 정보
+		//ABLOG(Warning, TEXT("RestartPlayer: Spawned Pawn Location: %s, Rotation: %s"),
+		//	*NewPawn->GetActorLocation().ToString(), *NewPawn->GetActorRotation().ToString());
+
+
 		NewPlayer->Possess(NewPawn);
+		if (APlayerController* PC = Cast<APlayerController>(NewPlayer))
+		{
+			PC->SetInitialLocationAndRotation(SpawnTransform.GetLocation(), SpawnTransform.GetRotation().Rotator());
+			PC->SetControlRotation(SpawnTransform.GetRotation().Rotator());
+
+			// 로그 추가: PlayerController 정보
+			ABLOG(Warning, TEXT("RestartPlayer: PlayerController Location: %s, ControlRotation: %s"),
+				*PC->GetPawn()->GetActorLocation().ToString(), *PC->GetControlRotation().ToString());
+		}
 	}
 }
 
