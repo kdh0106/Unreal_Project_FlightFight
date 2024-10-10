@@ -241,7 +241,7 @@ void AFFPawn::Tick(float DeltaTime)
     FRotator CurrentRotation = GetActorRotation();
     if (!CurrentRotation.Equals(LastRotation, 0.01f))
     {
-        ABLOG(Warning, TEXT("Pawn Rotation Changed: %s"), *CurrentRotation.ToString());
+        //ABLOG(Warning, TEXT("Pawn Rotation Changed: %s"), *CurrentRotation.ToString());
         LastRotation = CurrentRotation;
     }
 }
@@ -278,24 +278,11 @@ void AFFPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeP
 
 bool AFFPawn::ServerMoveForward_Validate(FVector NewLocation, FVector NewVelocity, FRotator NewRotation)
 {
-    //ABLOG(Warning, TEXT("Validate is it work? : %f"), Value);
-    //return FMath::Abs(Value) <= 1.0f;
     return true;
 }
 
 void AFFPawn::ServerMoveForward_Implementation(FVector NewLocation, FVector NewVelocity, FRotator NewRotation)
 {
-    // 서버에서 클라이언트의 입력을 받아 이동 처리
-    //if (Movement)
-    //{
-    //    Movement->AddInputVector(GetActorForwardVector() * Value);
-    //    ABLOG(Warning, TEXT("In Movement!"));   //클라이언트 동작 로그
-    //}
-    //else
-    //{
-    //    AddMovementInput(GetActorForwardVector(), Value);
-    //    ABLOG(Warning, TEXT("In Else!"));
-    //}
     ReplicatedLocation = NewLocation;
     ReplicatedVelocity = NewVelocity;
     ReplicatedRotation = NewRotation;
@@ -488,23 +475,6 @@ void AFFPawn::SpawnDeathEffect()
 
 void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함. 
 {
-    ////여기서 HasAuthority 했더니 클라이언트에서 리스폰되고 조종이 안됨.
-    //if (GetController())
-    //{
-    //    GetController()->SetControlRotation(SpawnRotation);  //SetActorRotation으로는 안됨.
-    //}
-
-    ////SetActorLocation(SpawnLocation);
-    ////SetActorRotation(SpawnRotation); //이걸 해주지 않으면 리스폰될때 잠깐동안 사망 당시의 Rotation을 유지해서, 리스폰되자마자 충돌이 발생함.
-
-    //Mesh->SetVisibility(true);
-    //Mesh_Death->SetVisibility(false);
-    //SetActorEnableCollision(true);
-    //SetHP(MaxHP);
-
-    //Movement->SetActive(true);
-    //Movement->Velocity = FVector::ZeroVector;  //이걸 안해주니, 전에 남아있던 속도 때문에 리스폰되자마자 혼자서 움직임.
-    //EnableInput(FFPlayerController);
     AGameModeBase* GameMode = GetWorld()->GetAuthGameMode();
     if (GameMode)
     {

@@ -20,7 +20,7 @@
 DECLARE_MULTICAST_DELEGATE(FOnHPIsZeroDelegate)
 
 UCLASS()
-class FLIGHTFIGHT_API AFFPawn : public APawn
+ class FLIGHTFIGHT_API AFFPawn : public APawn
 {
 	GENERATED_BODY()
 
@@ -28,7 +28,7 @@ public:
 	// Sets default values for this pawn's properties
 	AFFPawn();
 
-	UFUNCTION(Server, Reliable, WithValidation)
+	UFUNCTION(Server, UnReliable, WithValidation)
 	void ServerMoveForward(FVector NewLocation, FVector NewVelocity, FRotator NewRotation);
 
 	UFUNCTION(Server, Reliable, WithValidation)
