@@ -13,8 +13,14 @@ UCLASS()
 class FLIGHTFIGHT_API AFFPlayerController : public APlayerController
 {
 	GENERATED_BODY()
+
+public:
+	//AFFPlayerController();
+
+	virtual void Tick(float DeltaTime) override;
 	
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnPossess(APawn* InPawn) override;
+	//bool bInitialRotationSet;
 };

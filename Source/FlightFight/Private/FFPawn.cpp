@@ -228,7 +228,7 @@ void AFFPawn::Tick(float DeltaTime)
     //클라이언트 전용 함수 기능
     if (IsLocallyControlled())
     {  
-        ServerMoveForward(GetActorLocation(), Movement->Velocity, GetActorRotation());
+        ServerMoveForward(GetActorLocation(), Movement->Velocity, GetActorRotation()); //GetActorRotation();
     }
     else
     {
@@ -241,7 +241,7 @@ void AFFPawn::Tick(float DeltaTime)
     FRotator CurrentRotation = GetActorRotation();
     if (!CurrentRotation.Equals(LastRotation, 0.01f))
     {
-        //ABLOG(Warning, TEXT("Pawn Rotation Changed: %s"), *CurrentRotation.ToString());
+        ABLOG(Warning, TEXT("Pawn Rotation Changed: %s"), *CurrentRotation.ToString());
         LastRotation = CurrentRotation;
     }
 }
@@ -250,12 +250,13 @@ void AFFPawn::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
     ABLOG(Warning, TEXT("Pawn PossessedBy Rotation : %s"), *GetActorRotation().ToString());
+    SetActorRotation(FRotator(0.0f, -130.0f, 0.0f)); //리스폰 될 때 사망시의 Rotation을 가지고 태어나는 버그 이걸로 고쳐버림
 }
 
 void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
     Super::SetupPlayerInputComponent(PlayerInputComponent);
-
+     
     PlayerInputComponent->BindAxis(TEXT("MoveForward"), this, &AFFPawn::MoveForward);
     PlayerInputComponent->BindAxis(TEXT("Turn"), this, &AFFPawn::Turn);
     PlayerInputComponent->BindAxis(TEXT("LookUp"), this, &AFFPawn::LookUp);

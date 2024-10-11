@@ -60,6 +60,7 @@ int32 AFFGameMode::GetPlayerIndex(AController* Player) const
 
 AActor* AFFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 {
+	Super::ChoosePlayerStart_Implementation(Player);
 	if (PlayerStarts.Num() == 0)
 	{
 		InitializePlayerStarts();
@@ -151,6 +152,7 @@ AActor* AFFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 
 void AFFGameMode::RestartPlayer(AController* NewPlayer)
 {
+	Super::RestartPlayer(NewPlayer);
 	if (!IsValid(NewPlayer))
 	{
 		return;
@@ -185,15 +187,15 @@ void AFFGameMode::RestartPlayer(AController* NewPlayer)
 		NewPawn->SetActorLocationAndRotation(SpawnTransform.GetLocation(), SpawnTransform.GetRotation());
 
 		// 로그 추가: 스폰된 Pawn 정보
-		//ABLOG(Warning, TEXT("RestartPlayer: Spawned Pawn Location: %s, Rotation: %s"),
-		//	*NewPawn->GetActorLocation().ToString(), *NewPawn->GetActorRotation().ToString());
+		ABLOG(Warning, TEXT("RestartPlayer: Spawned Pawn Location: %s, Rotation: %s"),
+			*NewPawn->GetActorLocation().ToString(), *NewPawn->GetActorRotation().ToString());
 
 
 		NewPlayer->Possess(NewPawn);
 		if (APlayerController* PC = Cast<APlayerController>(NewPlayer))
 		{
 			PC->SetInitialLocationAndRotation(SpawnTransform.GetLocation(), SpawnTransform.GetRotation().Rotator());
-			PC->SetControlRotation(SpawnTransform.GetRotation().Rotator());
+			PC->SetControlRotation(SpawnTransform.GetRotation().Rotator()); 
 
 			// 로그 추가: PlayerController 정보
 			ABLOG(Warning, TEXT("RestartPlayer: PlayerController Location: %s, ControlRotation: %s"),

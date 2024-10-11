@@ -192,4 +192,6 @@ private:
 
 	FRotator LastRotation;
 
+	//bool bRotationInitialized;
+	//FRotator DesiredRotation;
 };
