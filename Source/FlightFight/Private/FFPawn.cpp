@@ -42,6 +42,7 @@ AFFPawn::AFFPawn()
     HPBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("HPBARWIDGET"));
 
     static ConstructorHelpers::FObjectFinder<UNiagaraSystem>THRUSTER_EFFECT_LEFT(TEXT("/Game/Book/FX/NS_West_Fighter_Typhoon_Jet.NS_West_Fighter_Typhoon_Jet"));
+    ///Game/Book/FX/NS_West_Fighter_Typhoon_Jet.NS_West_Fighter_Typhoon_Jet
     if (THRUSTER_EFFECT_LEFT.Succeeded())
     {
         ThrusterEffect_Left->SetAsset(THRUSTER_EFFECT_LEFT.Object);
@@ -196,6 +197,11 @@ void AFFPawn::BeginPlay()
 
    LastRotation = GetActorRotation();
    ABLOG(Warning, TEXT("Pawn BeginPlay Rotation : %s"), *GetActorRotation().ToString());
+
+   bIsThrusterFXActive = false;
+   OnRep_ThrusterFXActive();
+   bIsTrailFXActive = false;
+   OnRep_TrailFXActive();
 }
 
 void AFFPawn::PostInitializeComponents()
@@ -241,7 +247,7 @@ void AFFPawn::Tick(float DeltaTime)
     FRotator CurrentRotation = GetActorRotation();
     if (!CurrentRotation.Equals(LastRotation, 0.01f))
     {
-        ABLOG(Warning, TEXT("Pawn Rotation Changed: %s"), *CurrentRotation.ToString());
+        //ABLOG(Warning, TEXT("Pawn Rotation Changed: %s"), *CurrentRotation.ToString());
         LastRotation = CurrentRotation;
     }
 }
@@ -250,7 +256,8 @@ void AFFPawn::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
     ABLOG(Warning, TEXT("Pawn PossessedBy Rotation : %s"), *GetActorRotation().ToString());
-    SetActorRotation(FRotator(0.0f, -130.0f, 0.0f)); //리스폰 될 때 사망시의 Rotation을 가지고 태어나는 버그 이걸로 고쳐버림
+    SetActorRotation(FRotator(0.0f, -120.0f, 0.0f)); //리스폰 될 때 사망시의 Rotation을 가지고 태어나는 버그 이걸로 고쳐버림
+    //DeactivateFX();
 }
 
 void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -274,6 +281,8 @@ void AFFPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeP
     DOREPLIFETIME(AFFPawn, ReplicatedVelocity);
     DOREPLIFETIME(AFFPawn, ReplicatedRotation);
     DOREPLIFETIME(AFFPawn, CurrentHP);
+    DOREPLIFETIME(AFFPawn, bIsThrusterFXActive);
+    DOREPLIFETIME(AFFPawn, bIsTrailFXActive);
 } 
 
 
@@ -302,21 +311,13 @@ void AFFPawn::MoveForward(float NewAxisValue)
        
         if (NewAxisValue > 0.0f)
         {
-            ThrusterEffect_Left->Activate();
-            ThrusterEffect_Right->Activate();
-            TrailEffect_Left->Activate();
-            TrailEffect_Right->Activate();
-            TrailEffect_WRight->Activate();
-            TrailEffect_WLeft->Activate();
+            ActivateThrusterFX();
+            ActivateTrailFX();
         }
         else
         {
-            ThrusterEffect_Left->Deactivate();
-            ThrusterEffect_Right->Deactivate();
-            TrailEffect_Left->Deactivate();
-            TrailEffect_Right->Deactivate();
-            TrailEffect_WRight->Deactivate();
-            TrailEffect_WLeft->Deactivate();
+            DeactivateThrusterFX();
+            DeactivateTrailFX();
         }
     }
 }
@@ -432,22 +433,24 @@ void AFFPawn::StopShooting()
 
 void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+    if (!HasAuthority()) return;  //이걸 해주지 않았을 때, Server에서의 충돌과 Client의 충돌이벤트가 모두 발생해서 원래횟수x2의 ServerTakeDamage가 호출됨
     if (OtherActor && (OtherActor != this) && OtherComp) 
     {
         if(OtherActor && BulletActorClass && OtherActor->IsA(BulletActorClass))
         {
             AActor* Bullet = Cast<AActor>(OtherActor);
-            if (Bullet && Bullet->GetInstigator() != this) {
+            if (Bullet && Bullet->GetInstigator() != this && !Bullet->IsPendingKill()) {
                 ServerTakeDamage(5.0f);
             }
         }
-        else if (OtherActor && OtherActor->GetClass()->GetName().Contains(TEXT("Landscape")))
+        else if (OtherActor && OtherActor->GetClass()->GetName().Contains(TEXT("Landscape"))) 
         {
-            MulticastSpawnDeathEffect(); 
+            SetHP(0.0f);
+            MulticastSpawnDeathEffect();
         }
         //추후 적 기체와의 충돌 시 사망 추가 예정
     }
-}
+} 
  
 void AFFPawn::SpawnDeathEffect()
 {
@@ -538,5 +541,111 @@ void AFFPawn::SetSpawnLocationAndRotation(FVector Location, FRotator Rotation)
     {
         SpawnLocation = Location;
         SpawnRotation = Rotation;
+    }
+}
+
+void AFFPawn::OnRep_ThrusterFXActive()
+{
+    if (bIsThrusterFXActive)
+    {
+        ThrusterEffect_Left->Activate();
+        ThrusterEffect_Right->Activate();
+    }
+    else
+    {
+        ThrusterEffect_Left->Deactivate();
+        ThrusterEffect_Right->Deactivate();
+    }
+}
+
+void AFFPawn::Server_SetThrusterFXActive_Implementation(bool bNewState)
+{
+    bIsThrusterFXActive = bNewState; 
+    OnRep_ThrusterFXActive();
+}
+
+bool AFFPawn::Server_SetThrusterFXActive_Validate(bool bNewState)
+{
+    return true;
+}
+
+void AFFPawn::ActivateThrusterFX()
+{
+    if (HasAuthority())
+    {
+        bIsThrusterFXActive = true;
+        OnRep_ThrusterFXActive();
+    }
+    else
+    {
+        Server_SetThrusterFXActive(true);
+    }
+}
+
+void AFFPawn::DeactivateThrusterFX()
+{
+    if (HasAuthority())
+    {
+        bIsThrusterFXActive = false;
+        OnRep_ThrusterFXActive();
+    }
+    else
+    {
+        Server_SetThrusterFXActive(false);
+    }
+}
+
+void AFFPawn::OnRep_TrailFXActive()
+{
+    if (bIsTrailFXActive)
+    {
+        TrailEffect_Left->Activate();
+        TrailEffect_Right->Activate();
+        TrailEffect_WLeft->Activate();
+        TrailEffect_WRight->Activate();
+    }
+    else
+    {
+        TrailEffect_Left->Deactivate();
+        TrailEffect_Right->Deactivate();
+        TrailEffect_WLeft->Deactivate();
+        TrailEffect_WRight->Deactivate();
+    }
+}
+
+void AFFPawn::Server_SetTrailFXActive_Implementation(bool bNewState)
+{
+    bIsTrailFXActive = bNewState;
+    OnRep_TrailFXActive();
+}
+
+bool AFFPawn::Server_SetTrailFXActive_Validate(bool bNewState)
+{
+    return true;
+}
+
+void AFFPawn::ActivateTrailFX()
+{
+    if (HasAuthority())
+    {
+        bIsTrailFXActive = true;
+        OnRep_TrailFXActive();
+    }
+    else
+    {
+        Server_SetTrailFXActive(true);
+    }
+}
+
+void AFFPawn::DeactivateTrailFX()
+{
+    if (HasAuthority())
+    {
+        bIsTrailFXActive = false;
+        OnRep_TrailFXActive();
+    }
+    else
+    {
+        Server_SetTrailFXActive(false);
     }
 }

@@ -139,6 +139,36 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = "UI")
 	class UWidgetComponent* HPBarWidget;
+
+	UPROPERTY(ReplicatedUsing = OnRep_ThrusterFXActive)
+	bool bIsThrusterFXActive;
+
+	UFUNCTION()
+	void OnRep_ThrusterFXActive();
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SetThrusterFXActive(bool bNewState);
+
+	UFUNCTION()
+	void ActivateThrusterFX();
+
+	UFUNCTION()
+	void DeactivateThrusterFX();
+
+	UPROPERTY(ReplicatedUsing = OnRep_TrailFXActive)
+	bool bIsTrailFXActive;
+
+	UFUNCTION()
+	void OnRep_TrailFXActive();
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_SetTrailFXActive(bool bNewState);
+
+	UFUNCTION()
+	void ActivateTrailFX();
+
+	UFUNCTION()
+	void DeactivateTrailFX();
 	 
 private:
 	void MoveForward(float NewAxisValue);
@@ -194,4 +224,5 @@ private:
 
 	//bool bRotationInitialized;
 	//FRotator DesiredRotation;
+
 };
