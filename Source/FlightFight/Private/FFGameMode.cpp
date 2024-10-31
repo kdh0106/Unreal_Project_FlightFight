@@ -6,16 +6,37 @@
 #include "FFPawn.h"
 #include "FlightFight.h"
 #include "FFPlayerController.h"
+#include "FFPlayerState.h"
+#include "FFHUD.h"
 #include "Kismet/GameplayStatics.h"
+#include "FFPlayerState.h"
+#include "FFSessionInterface.h"
 #include "UObject/ConstructorHelpers.h"
 
 AFFGameMode::AFFGameMode()
 {
 	DefaultPawnClass = AFFPawn::StaticClass();
 	PlayerControllerClass = AFFPlayerController::StaticClass();
+	//PlayerStateClass = AFFPlayerState::StaticClass();
+	/*static ConstructorHelpers::FClassFinder<UFFHUDWidget>UI_HUD_C(TEXT("/Game/Book/UI/UI_HUD.UI_HUD_C"));
+	if (UI_HUD_C.Succeeded())
+	{
+		HUDWidgetClass = UI_HUD_C.Class;
+		ABLOG(Warning, TEXT("HUD Widget Class loaded success"));
+	}
+	else
+	{
+		ABLOG(Warning, TEXT("Failed to HUD WIdget"));
+	}*/
 
 	bIsListenServerHost = false;
 	NextPlayerIndex = 0;
+}
+
+void AFFGameMode::BeginPlay()
+{
+	Super::BeginPlay();	
+
 }
 
 void AFFGameMode::InitializePlayerStarts()
@@ -41,6 +62,16 @@ void AFFGameMode::PostLogin(APlayerController* NewPlayer)
 	Super::PostLogin(NewPlayer);
 	ChoosePlayerStart(NewPlayer);
 	LogPlayerStarts();
+
+	/*if (NewPlayer)
+	{
+		AFFHUD* GameHUD = Cast<AFFHUD>(NewPlayer->GetHUD());
+		if (GameHUD)
+		{
+			ABLOG(Warning, TEXT("CAS in GameMode!@#!@$!@#!"));
+			GameHUD->CreateAndShowWidget();
+		}
+	}*/
 }
 
 int32 AFFGameMode::GetPlayerIndex(AController* Player) const
@@ -93,63 +124,6 @@ AActor* AFFGameMode::ChoosePlayerStart_Implementation(AController* Player)
 	return PlayerStarts[0];
 }
 
-//void AFFGameMode::AssignPlayerStart(AController* Player)
-//{
-//	if (PlayerStarts.Num() == 0) 
-//	{
-//		//월드의 모든 PlayerStart를 찾아 PlayerStarts 배열에 저장, APlayerStart 클래스 참조 -> "GameFramework/PlayerStart.h" 
-//		UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), PlayerStarts);
-//	} 
-//
-//	//ABLOG(Warning, TEXT("The PS's Num is : %d"), PlayerStarts.Num());
-//
-//	if (PlayerStarts.Num() > 0)
-//	{
-//		int32 StartIndex = NextPlayerIndex % PlayerStarts.Num();
-//		PlayerToStartMap.Add(Player, PlayerStarts[StartIndex]);
-//
-//		FRotator SpawnRotation = PlayerStarts[StartIndex]->GetActorRotation();
-//		FVector SpawnLocation = PlayerStarts[StartIndex]->GetActorLocation();
-//
-//		FString PlayerName = Player->GetName();
-//
-//		ABLOG(Warning, TEXT("Player : %s // SPR, SPL : %s, %s"), *PlayerName, *SpawnRotation.ToString(), *SpawnLocation.ToString());
-//
-//		if (APawn* Pawn = Player->GetPawn())
-//		{
-//			AFFPawn* FFPawn = Cast<AFFPawn>(Pawn);
-//			if (FFPawn)
-//			{
-//				FFPawn->SetSpawnLocationAndRotation(SpawnLocation, SpawnRotation);
-//			}
-//		}
-//		NextPlayerIndex++;
-//
-//		//FString PlayerName = Player->GetName();
-//		//ABLOG(Warning, TEXT("Assign!!!! %s"), *PlayerName);
-//	}
-//}
-
-//AActor* AFFGameMode::FindPlayerStart_Implementation(AController* Player, const FString& IncomingName)
-//{
-//	if (AActor** FoundStart = PlayerToStartMap.Find(Player))
-//	{
-//		return *FoundStart;
-//	}
-//
-//	//할당된 PlayerStart가 없으면, 새로 할당함
-//	AssignPlayerStart(Player);
-//	
-//	if (AActor** FoundStart = PlayerToStartMap.Find(Player))
-//	{
-//		return *FoundStart;
-//	}
-//
-//	//그래도 없으면 기본 구현 사용
-//	return Super::FindPlayerStart_Implementation(Player, IncomingName);
-//
-//}
-
 void AFFGameMode::RestartPlayer(AController* NewPlayer)
 {
 	Super::RestartPlayer(NewPlayer);
@@ -162,13 +136,8 @@ void AFFGameMode::RestartPlayer(AController* NewPlayer)
 
 	if (StartSpot == nullptr)
 	{
-		//ABLOG(Warning, TEXT("Failed to find PlayerStart!"));
 		return;
 	}
-
-	//선택된 PlayerStart 정보
-	//ABLOG(Warning, TEXT("RestartPlayer: Selected PlayerStart Location: %s, Rotation: %s"),
-	//	*StartSpot->GetActorLocation().ToString(), *StartSpot->GetActorRotation().ToString());
 
 	// 기존 Pawn 제거
 	if (NewPlayer->GetPawn() != nullptr)
@@ -187,8 +156,8 @@ void AFFGameMode::RestartPlayer(AController* NewPlayer)
 		NewPawn->SetActorLocationAndRotation(SpawnTransform.GetLocation(), SpawnTransform.GetRotation());
 
 		// 로그 추가: 스폰된 Pawn 정보
-		ABLOG(Warning, TEXT("RestartPlayer: Spawned Pawn Location: %s, Rotation: %s"),
-			*NewPawn->GetActorLocation().ToString(), *NewPawn->GetActorRotation().ToString());
+		//ABLOG(Warning, TEXT("RestartPlayer: Spawned Pawn Location: %s, Rotation: %s"),
+		//	*NewPawn->GetActorLocation().ToString(), *NewPawn->GetActorRotation().ToString());
 
 
 		NewPlayer->Possess(NewPawn);
@@ -198,8 +167,8 @@ void AFFGameMode::RestartPlayer(AController* NewPlayer)
 			PC->SetControlRotation(SpawnTransform.GetRotation().Rotator()); 
 
 			// 로그 추가: PlayerController 정보
-			ABLOG(Warning, TEXT("RestartPlayer: PlayerController Location: %s, ControlRotation: %s"),
-				*PC->GetPawn()->GetActorLocation().ToString(), *PC->GetControlRotation().ToString());
+		//	ABLOG(Warning, TEXT("RestartPlayer: PlayerController Location: %s, ControlRotation: %s"),
+		//		*PC->GetPawn()->GetActorLocation().ToString(), *PC->GetControlRotation().ToString());
 		}
 	}
 }
@@ -220,8 +189,6 @@ bool AFFGameMode::SpawnPlayerPawnIfNeeded(AController* NewPlayer, AActor* StartS
 		ABLOG(Warning, TEXT("Player already spawned, but no pawn found. This shouldn't happen."));
 		return false;
 	}
-
-	ABLOG(Warning, TEXT("Spawning Pawn %s for player at location : %s"), *NewPlayer->GetName(), *StartSpot->GetActorLocation().ToString());
 
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
@@ -247,49 +214,35 @@ void AFFGameMode::LogPlayerStarts()
 	for (TActorIterator<APlayerStart>It(GetWorld()); It; ++It)
 	{
 		APlayerStart* PlayerStart = *It;
-		ABLOG(Warning, TEXT("PlayerStart: %s at location %s"),
-			*PlayerStart->GetName(), *PlayerStart->GetActorLocation().ToString());
+	}
+} 
+
+void AFFGameMode::HostServer()
+{
+	UFFSessionInterface* SessionInterface = GetGameInstance()->GetSubsystem<UFFSessionInterface>();
+	if (SessionInterface) 
+	{
+		SessionInterface->HostListenServer();
 	}
 }
 
-//void AFFGameMode::SpawnAndPossessPawn(AController* NewPlayer)
+void AFFGameMode::JoinServer(const FString& IPAddress)
+{
+	UFFSessionInterface* SessionInterface = GetGameInstance()->GetSubsystem<UFFSessionInterface>();
+	if (SessionInterface)
+	{
+		SessionInterface->JoinServerByIP(IPAddress);
+	}
+}
+
+//void AFFGameMode::PawnKilled(AController* KillerController, AController* KilledController)
 //{
-//	if (!NewPlayer)
+//	if (KillerController && KillerController != KilledController)
 //	{
-//		return;
-//	}
-//	AActor* StartSpot = FindPlayerStart(NewPlayer);
-//	if (StartSpot != nullptr)
-//	{
-//		FVector Location = StartSpot->GetActorLocation(); 
-//		FRotator Rotation = StartSpot->GetActorRotation();
-//
-//		FActorSpawnParameters SpawnParams;
-//		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;  //??
-//
-//		APawn* NewPawn = GetWorld()->SpawnActor<APawn>(DefaultPawnClass, Location, Rotation, SpawnParams);
-//		//APawn* NewPawn = SpawnDefaultPawnFor(NewPlayer, StartSpot);
-//		ABLOG(Warning, TEXT("Spawn in Restart!!"));
-//		if (NewPawn != nullptr)
+//		AFFPlayerState* KillerPlayerState = KillerController->GetPlayerState<AFFPlayerState>();
+//		if (KillerPlayerState)
 //		{
-//			NewPawn->SetOwner(NewPlayer);
-//			NewPlayer->Possess(NewPawn);
-//			ABLOG(Warning, TEXT("Possess on REstart!!"));
-//
-//			if (GetNetMode() == NM_ListenServer || GetNetMode() == NM_DedicatedServer)
-//			{
-//				NewPawn->SetAutonomousProxy(true);
-//			}
-//
-//			/*AFFPawn* FFPawn = Cast<AFFPawn>(NewPawn);
-//			if (FFPawn)
-//			{
-//				FFPawn->SetInitialSpawnLocation(Location);
-//			}*/
+//			KillerPlayerState->AddScore(1);
 //		}
-//	}
-//	else
-//	{
-//		ABLOG(Error, TEXT("Could not find a PlayerStart for the player."));
 //	}
 //}

@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ // Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -11,9 +11,11 @@
 #include "TimerManager.h"
 #include "FFPlayerController.h"
 #include "FFGameMode.h"
+#include "FFPlayerState.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/WidgetComponent.h"
 #include "FFHPBarWidget.h"
+#include "FFHUDWidget.h"
 #include "Net/UnrealNetwork.h"
 #include "FFPawn.generated.h"
 
@@ -32,14 +34,15 @@ public:
 	void ServerMoveForward(FVector NewLocation, FVector NewVelocity, FRotator NewRotation);
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerTakeDamage(float Damage);
+	void ServerTakeDamage(float Damage, AController* InstigatorController);
 
 	UFUNCTION(NetMulticast, Reliable)
 	void MulticastSpawnDeathEffect();
 
 	// 네트워크 관련성 오버라이드
-	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override;
-	void SetSpawnLocationAndRotation(FVector Location, FRotator Rotation);
+	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override; 
+
+	//void AddScore();
 
 protected:
 	// Called when the game starts or when spawned
@@ -51,6 +54,7 @@ public:
 	virtual void PossessedBy(AController* NewController) override;
 	virtual void PostInitializeComponents() override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;  //프로퍼티 리플리케이션
+	//virtual void Destroyed();
 
 	// Called to bind functionality to input 
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -140,6 +144,11 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "UI")
 	class UWidgetComponent* HPBarWidget;
 
+	UPROPERTY(EditAnywhere, Category="UI")
+	TSubclassOf<UUserWidget> ScoreWidgetClass;
+
+	UUserWidget* ScoreTextWidget;
+
 	UPROPERTY(ReplicatedUsing = OnRep_ThrusterFXActive)
 	bool bIsThrusterFXActive;
 
@@ -169,6 +178,9 @@ public:
 
 	UFUNCTION()
 	void DeactivateTrailFX();
+
+	/*UPROPERTY(VisibleAnywhere, Category = "Stats", ReplicatedUsing = OnRep_CurrentScore, Meta = (AllowPrivateAccess = true))
+	int32 CurrentScore;*/
 	 
 private:
 	void MoveForward(float NewAxisValue);
@@ -189,6 +201,9 @@ private:
 	void UpdateHPBar();
 	void SetHP(float NewHP);
 
+	//void UpdateScore();
+	//void SetScore(int32 NewScore);
+
 	UPROPERTY(Transient, VisibleInstanceOnly)
 	int32 HP;
 
@@ -200,6 +215,16 @@ private:
 
 	UFUNCTION()
 	void OnRep_CurrentHP();
+
+	/*UPROPERTY(EditAnywhere, Category = "Stats", Meta = (AllowPrivateAccess = true))
+	int32 HighScore;
+
+	
+
+	UFUNCTION()
+	void OnRep_CurrentScore();*/
+
+	
 
 	UPROPERTY(EditAnywhere, Category = "Effects")
 	UParticleSystem* DeathParticleSystem;

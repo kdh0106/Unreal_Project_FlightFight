@@ -98,7 +98,7 @@ AFFPawn::AFFPawn()
     //SetActorLocation(FVector(0.0f, 0.0f, 0.0f));
    // BoxCollision->SetRelativeLocation(FVector(0.0f, 0.0f, 237.5f));
     BoxCollision->InitBoxExtent(FVector(700.0f, 550.0f, 152.5f));  //237.5
-
+        
     FVector BoxExtent = BoxCollision->GetScaledBoxExtent();
     BoxCollision->SetRelativeLocation(FVector(0.0f, 0.0f, BoxExtent.Z + 15.0f));
 
@@ -109,7 +109,7 @@ AFFPawn::AFFPawn()
 
     HPBarWidget->SetRelativeLocation(FVector(0.0f, 0.0f, 480.0f));
     HPBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
-    static ConstructorHelpers::FClassFinder<UUserWidget>UI_HUD_HP(TEXT("/Game/Book/UI/UI_HPBar.UI_HPBar_C"));
+    static ConstructorHelpers::FClassFinder<UUserWidget>UI_HUD_HP(TEXT("/Game/Book/UI/UI_HPBar.UI_HPBar_C"));   
     if (UI_HUD_HP.Succeeded())
     {
         HPBarWidget->SetWidgetClass(UI_HUD_HP.Class);
@@ -154,11 +154,21 @@ AFFPawn::AFFPawn()
     CurrentHP = MaxHP;
     SetHP(CurrentHP);
 
+    //HighScore = 5;
+    //CurrentScore = 0;
+    //SetScore(CurrentScore);
+
     static ConstructorHelpers::FClassFinder<UUserWidget>AimWidget(TEXT("/Game/Book/UI/UI_Aim.UI_Aim_C"));
     if (AimWidget.Succeeded())
     {
         CrosshairWidgetClass = AimWidget.Class;
     }
+
+    /*static ConstructorHelpers::FClassFinder<UUserWidget>UI_HUD_C(TEXT("/Game/Book/UI/UI_HUD.UI_HUD_C"));
+    if (UI_HUD_C.Succeeded())
+    {
+        ScoreWidgetClass = UI_HUD_C.Class;
+    }*/
 }
   
 // Called when the game starts or when spawned
@@ -174,8 +184,24 @@ void AFFPawn::BeginPlay()
             CrosshairWidget->AddToViewport();
         }
     }
+
+    /*if (IsValid(ScoreWidgetClass))
+    {
+        ScoreTextWidget = Cast<UUserWidget>(CreateWidget(GetWorld(), ScoreWidgetClass));
+        if (IsValid(ScoreTextWidget))
+        {
+            ScoreTextWidget->AddToViewport();
+        }
+    }*/
+
     
     UpdateHPBar();
+    
+    /*CurrentScore = 0;
+    if (AFFPlayerController* PC = Cast<AFFPlayerController>(Controller))
+    {
+        PC->UpdateScoreDisplay();
+    }*/
 
     //SpawnLocation = GetActorLocation(); // FVector(4704.808635f, 4434.708254f, 432.5002f); AssignPlayerStart실험(밑에도)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     //SpawnRotation = GetActorRotation(); // FRotator(0.0f, 45.0f, 0.0f);
@@ -196,7 +222,6 @@ void AFFPawn::BeginPlay()
     }
 
    LastRotation = GetActorRotation();
-   ABLOG(Warning, TEXT("Pawn BeginPlay Rotation : %s"), *GetActorRotation().ToString());
 
    bIsThrusterFXActive = false;
    OnRep_ThrusterFXActive();
@@ -210,11 +235,12 @@ void AFFPawn::PostInitializeComponents()
 
     OnHPIsZero.AddLambda([this]() -> void {
         MulticastSpawnDeathEffect();
+        //Destroyed();
         });
 
     if (GetLocalRole() == ROLE_Authority)  //서버에서만 실행
     {
-        NetUpdateFrequency = 60.0f; //초당 60회 업데이트
+        NetUpdateFrequency = 60.0f; //초당 60회 업데이트   
     }
 }
 
@@ -238,16 +264,12 @@ void AFFPawn::Tick(float DeltaTime)
     }
     else
     {
-        //SetActorLocation(FMath::VInterpTo(GetActorLocation(), ReplicatedLocation, DeltaTime, 10.0f));
-        //ABLOG(Warning, TEXT("replicated location %s"), *ReplicatedLocation.ToString());
-        //SetActorRotation(ReplicatedRotation);
         Movement->Velocity = ReplicatedVelocity;
     } 
 
     FRotator CurrentRotation = GetActorRotation();
     if (!CurrentRotation.Equals(LastRotation, 0.01f))
     {
-        //ABLOG(Warning, TEXT("Pawn Rotation Changed: %s"), *CurrentRotation.ToString());
         LastRotation = CurrentRotation;
     }
 }
@@ -255,9 +277,7 @@ void AFFPawn::Tick(float DeltaTime)
 void AFFPawn::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
-    ABLOG(Warning, TEXT("Pawn PossessedBy Rotation : %s"), *GetActorRotation().ToString());
     SetActorRotation(FRotator(0.0f, -120.0f, 0.0f)); //리스폰 될 때 사망시의 Rotation을 가지고 태어나는 버그 이걸로 고쳐버림
-    //DeactivateFX();
 }
 
 void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -270,7 +290,7 @@ void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
     PlayerInputComponent->BindAxis(TEXT("Rolling"), this, &AFFPawn::Rolling);
     PlayerInputComponent->BindAction(TEXT("Fire"), EInputEvent::IE_Pressed, this, &AFFPawn::Fire);
     PlayerInputComponent->BindAction(TEXT("Fire"), EInputEvent::IE_Released, this, &AFFPawn::StopShooting);
-}
+} 
 
  //리플리케이트 된 프로퍼티
 void AFFPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -278,12 +298,13 @@ void AFFPawn::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeP
     Super::GetLifetimeReplicatedProps(OutLifetimeProps);
     DOREPLIFETIME(AFFPawn, Movement);
     DOREPLIFETIME(AFFPawn, ReplicatedLocation);
-    DOREPLIFETIME(AFFPawn, ReplicatedVelocity);
+    DOREPLIFETIME(AFFPawn, ReplicatedVelocity); 
     DOREPLIFETIME(AFFPawn, ReplicatedRotation);
     DOREPLIFETIME(AFFPawn, CurrentHP);
     DOREPLIFETIME(AFFPawn, bIsThrusterFXActive);
     DOREPLIFETIME(AFFPawn, bIsTrailFXActive);
-} 
+    //DOREPLIFETIME(AFFPawn, CurrentScore);
+}
 
 
 bool AFFPawn::ServerMoveForward_Validate(FVector NewLocation, FVector NewVelocity, FRotator NewRotation)
@@ -309,7 +330,7 @@ void AFFPawn::MoveForward(float NewAxisValue)
     {
         AddMovementInput(GetActorForwardVector(), NewAxisValue);
        
-        if (NewAxisValue > 0.0f)
+        if (NewAxisValue > 0.0f)    
         {
             ActivateThrusterFX();
             ActivateTrailFX();
@@ -358,7 +379,7 @@ void AFFPawn::ShootBullet()
 {
     FHitResult OutHit_L, OutHit_R;
     ECollisionChannel TraceChannel = ECC_Visibility; 
-    FCollisionQueryParams CollisionParams;
+    FCollisionQueryParams CollisionParams;  
     CollisionParams.AddIgnoredActor(this);  // 자신은 콜리전 반응이 일어나지 않게끔.
 
     bool bResult_L = GetWorld()->LineTraceSingleByChannel(
@@ -438,9 +459,9 @@ void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AA
     {
         if(OtherActor && BulletActorClass && OtherActor->IsA(BulletActorClass))
         {
-            AActor* Bullet = Cast<AActor>(OtherActor);
+            AActor* Bullet = Cast<AActor>(OtherActor);  
             if (Bullet && Bullet->GetInstigator() != this && !Bullet->IsPendingKill()) {
-                ServerTakeDamage(5.0f);
+                ServerTakeDamage(5.0f, Bullet->GetInstigatorController());
             }
         }
         else if (OtherActor && OtherActor->GetClass()->GetName().Contains(TEXT("Landscape"))) 
@@ -448,7 +469,16 @@ void AFFPawn::OnOverlapBegin(class UPrimitiveComponent* OverlappedComp, class AA
             SetHP(0.0f);
             MulticastSpawnDeathEffect();
         }
-        //추후 적 기체와의 충돌 시 사망 추가 예정
+        AFFPawn* OtherPawn = Cast<AFFPawn>(OtherActor);     
+        if (OtherPawn)
+        {   
+            SetHP(0.0f);
+            //SetScore(4);
+            MulticastSpawnDeathEffect();
+            OtherPawn->SetHP(0.0f); 
+            OtherPawn->MulticastSpawnDeathEffect();
+            //OtherPawn->SetScore(4);
+        }
     }
 } 
  
@@ -492,7 +522,7 @@ void AFFPawn::UpdateHPBar()
     if (HPWidget)
     {
         HPWidget->UpdateHPBarWidget(CurrentHP, MaxHP);
-    }  
+    }
 }
 
 void AFFPawn::SetHP(float NewHP)
@@ -506,7 +536,36 @@ void AFFPawn::OnRep_CurrentHP()
     UpdateHPBar(); 
 }
 
-void AFFPawn::ServerTakeDamage_Implementation(float Damage)
+//void AFFPawn::UpdateScore()
+//{
+//    auto ScoreText = Cast<UFFHUDWidget>(ScoreTextWidget);
+//    if (ScoreText)
+//    {
+//        ScoreText->UpdateHUDWidget(CurrentScore, HighScore);
+//    }   
+//}
+//
+//void AFFPawn::SetScore(int32 NewScore)
+//{
+//    CurrentScore = NewScore;
+//    OnRep_CurrentScore();
+//}
+
+//void AFFPawn::OnRep_CurrentScore()
+//{
+//    if (AFFPlayerController* PC = Cast<AFFPlayerController>(Controller))
+//    {
+//        PC->UpdateScoreDisplay();
+//    }
+//}
+
+
+//void AFFPawn::UpdateScore()
+//{
+//    auto ScoreWidget_tmp = Cast<UFFHUDWidget>(ScoreWidget->)
+//}
+
+void AFFPawn::ServerTakeDamage_Implementation(float Damage, AController* InstigatorController)
 {
     if (GetLocalRole() == ROLE_Authority) 
     {
@@ -515,12 +574,30 @@ void AFFPawn::ServerTakeDamage_Implementation(float Damage)
         if (CurrentHP <= KINDA_SMALL_NUMBER)
         {
             OnHPIsZero.Broadcast();
+            AFFPlayerController* ServerKillerPC = Cast<AFFPlayerController>(InstigatorController);
+            if (ServerKillerPC && ServerKillerPC->IsLocalPlayerController())
+            {
+                ServerKillerPC->AddScore();
+            }
+            if (ServerKillerPC && !ServerKillerPC->IsLocalPlayerController())
+            {
+                ServerKillerPC->Client_NotifyScoreAdd();
+            }
+
+            //if (InstigatorController)
+            //{
+            //    AFFPlayerController* KillerController = Cast<AFFPlayerController>(InstigatorController);
+            //    if (KillerController)
+            //    {
+            //        KillerController->NotifyEnemyKilled();
+            //        //여기까진 Client에서도 호출됨
+            //    }
+            //}
         }
-        ABLOG(Warning, TEXT("Damage!"));
     }
 }
 
-bool AFFPawn::ServerTakeDamage_Validate(float Damage)
+bool AFFPawn::ServerTakeDamage_Validate(float Damage, AController* InstigatorController)
 {
     return Damage > 0;
 }
@@ -533,15 +610,6 @@ void AFFPawn::MulticastSpawnDeathEffect_Implementation()
 bool AFFPawn::IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const
 {
     return true; //항상 네트워크 관련성이 있다고 반환
-}
-
-void AFFPawn::SetSpawnLocationAndRotation(FVector Location, FRotator Rotation)
-{
-    if (HasAuthority())
-    {
-        SpawnLocation = Location;
-        SpawnRotation = Rotation;
-    }
 }
 
 void AFFPawn::OnRep_ThrusterFXActive()
@@ -649,3 +717,30 @@ void AFFPawn::DeactivateTrailFX()
         Server_SetTrailFXActive(false);
     }
 }
+
+//void AFFPawn::AddScore()
+//{
+//    CurrentScore++;
+//    if (AFFPlayerController* PC = Cast<AFFPlayerController>(Controller))
+//    {
+//        PC->UpdateScoreDisplay();
+//    }
+//}
+
+//void AFFPawn::Destroyed()
+//{
+//    Super::Destroyed();
+//
+//    if (HasAuthority())
+//    {
+//        AController* KillerController = LastHitBy;
+//        if (KillerController)
+//        {
+//            AFFPlayerState* KillerPlayerState = KillerController->GetPlayerState<AFFPlayerState>();
+//            if (KillerPlayerState)
+//            {
+//                KillerPlayerState->AddScore(1);
+//            }
+//        }
+//    }
+//}

@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerStart.h"
 #include "GameFramework/PlayerState.h"
 #include "GameFramework/GameState.h"
+#include "Blueprint/UserWidget.h"
 #include "EngineUtils.h"
 #include "FFGameMode.generated.h"
 
@@ -26,6 +27,17 @@ public:
 	virtual void RestartPlayer(AController* NewPlayer) override;
 	virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 
+	void HostServer();
+	void JoinServer(const FString& IPAddress);
+	void PawnKilled(AController* KillController, AController* KilledController);
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<class UFFHUDWidget> HUDWidgetClass;
+
+	UPROPERTY()
+	class UFFHUDWidget* HUDWidget;
+
+	virtual void BeginPlay() override;
 
 private:
 	TArray<AActor*> UsedPlayerStarts;
@@ -45,9 +57,5 @@ private:
 	void InitializePlayerStarts();
 	int32 GetPlayerIndex(AController* Player) const;
 
-	//TMap<AController*, AActor*> PlayerToStartMap;
 	int32 NextPlayerIndex;
-
-	//void AssignPlayerStart(AController* Player);*/
-	//void SpawnAndPossessPawn(AController* NewPlayer);
 };
