@@ -4,6 +4,10 @@
 #include "FFPawn.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "OnlineSubsystem.h"
+#include "OnlineSessionSettings.h"
+#include "EnhancedInputSubsystems.h"
 #include "Net/UnrealNetwork.h"
 
 FName BoosterSocket1(TEXT("rt_thruster_jnt"));
@@ -17,6 +21,9 @@ FName TrailSocketW2(TEXT("Trail_WR"));
 
 // Sets default values
 AFFPawn::AFFPawn()
+    : CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnCreateSessionComplete))
+    , FindSessionCompleteDelegate(FOnFindSessionsCompleteDelegate::CreateUObject(this, &ThisClass::OnFindSessionComplete))
+    , JoinSessionCompleteDelegate(FOnJoinSessionCompleteDelegate::CreateUObject(this, &ThisClass::OnJoinSessionComplete))
 {
     // Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
     PrimaryActorTick.bCanEverTick = true;
@@ -154,24 +161,24 @@ AFFPawn::AFFPawn()
     CurrentHP = MaxHP;
     SetHP(CurrentHP);
 
-    //HighScore = 5;
-    //CurrentScore = 0;
-    //SetScore(CurrentScore);
-
     static ConstructorHelpers::FClassFinder<UUserWidget>AimWidget(TEXT("/Game/Book/UI/UI_Aim.UI_Aim_C"));
     if (AimWidget.Succeeded())
     {
         CrosshairWidgetClass = AimWidget.Class;
     }
 
-    /*static ConstructorHelpers::FClassFinder<UUserWidget>UI_HUD_C(TEXT("/Game/Book/UI/UI_HUD.UI_HUD_C"));
-    if (UI_HUD_C.Succeeded())
+    IOnlineSubsystem* OnlineSubsystem = IOnlineSubsystem::Get();
+    if (OnlineSubsystem)
     {
-        ScoreWidgetClass = UI_HUD_C.Class;
-    }*/
+        OnlineSessionInterface = OnlineSubsystem->GetSessionInterface();
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Blue, FString::Printf(TEXT("Found subsystem %s"), *OnlineSubsystem->GetSubsystemName().ToString()));
+        }
+    }
 }
   
-// Called when the game starts or when spawned
+// Called when the game starts or when spawned 
 void AFFPawn::BeginPlay()
 {
     Super::BeginPlay();
@@ -235,7 +242,6 @@ void AFFPawn::PostInitializeComponents()
 
     OnHPIsZero.AddLambda([this]() -> void {
         MulticastSpawnDeathEffect();
-        //Destroyed();
         });
 
     if (GetLocalRole() == ROLE_Authority)  //서버에서만 실행
@@ -272,6 +278,12 @@ void AFFPawn::Tick(float DeltaTime)
     {
         LastRotation = CurrentRotation;
     }
+    
+   /* if (AGameStateBase* GameState = GetWorld()->GetGameState())
+    {
+        int32 PlayerCount = GameState->PlayerArray.Num();
+        GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Blue, FString::Printf(TEXT("Connected Players : %d"), PlayerCount), true);
+    }*/
 }
 
 void AFFPawn::PossessedBy(AController* NewController)
@@ -290,6 +302,8 @@ void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
     PlayerInputComponent->BindAxis(TEXT("Rolling"), this, &AFFPawn::Rolling);
     PlayerInputComponent->BindAction(TEXT("Fire"), EInputEvent::IE_Pressed, this, &AFFPawn::Fire);
     PlayerInputComponent->BindAction(TEXT("Fire"), EInputEvent::IE_Released, this, &AFFPawn::StopShooting);
+    PlayerInputComponent->BindAction(TEXT("CreateSession"), IE_Pressed, this, &AFFPawn::CreateGameSession);
+    PlayerInputComponent->BindAction(TEXT("JoinSession"), IE_Pressed, this, &AFFPawn::JoinGameSession);
 } 
 
  //리플리케이트 된 프로퍼티
@@ -536,35 +550,6 @@ void AFFPawn::OnRep_CurrentHP()
     UpdateHPBar(); 
 }
 
-//void AFFPawn::UpdateScore()
-//{
-//    auto ScoreText = Cast<UFFHUDWidget>(ScoreTextWidget);
-//    if (ScoreText)
-//    {
-//        ScoreText->UpdateHUDWidget(CurrentScore, HighScore);
-//    }   
-//}
-//
-//void AFFPawn::SetScore(int32 NewScore)
-//{
-//    CurrentScore = NewScore;
-//    OnRep_CurrentScore();
-//}
-
-//void AFFPawn::OnRep_CurrentScore()
-//{
-//    if (AFFPlayerController* PC = Cast<AFFPlayerController>(Controller))
-//    {
-//        PC->UpdateScoreDisplay();
-//    }
-//}
-
-
-//void AFFPawn::UpdateScore()
-//{
-//    auto ScoreWidget_tmp = Cast<UFFHUDWidget>(ScoreWidget->)
-//}
-
 void AFFPawn::ServerTakeDamage_Implementation(float Damage, AController* InstigatorController)
 {
     if (GetLocalRole() == ROLE_Authority) 
@@ -718,29 +703,205 @@ void AFFPawn::DeactivateTrailFX()
     }
 }
 
-//void AFFPawn::AddScore()
+//void AFFPawn::CallOpenLevel(const FString& Address)
+//{ 
+//    UGameplayStatics::OpenLevel(this, *Address);
+//}
+//
+//void AFFPawn::CallClientTravel(const FString& Address)
 //{
-//    CurrentScore++;
-//    if (AFFPlayerController* PC = Cast<AFFPlayerController>(Controller))
+//    APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
+//    if (PlayerController)
 //    {
-//        PC->UpdateScoreDisplay();
+//        PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
+//    }
+//}
+//
+//void AFFPawn::OpenLobby()
+//{
+//    UWorld* World = GetWorld();
+//    if (World)
+//    {
+//        World->ServerTravel("/Game/Book/Maps/LandTest.LandTest?listen");
 //    }
 //}
 
-//void AFFPawn::Destroyed()
-//{
-//    Super::Destroyed();
-//
-//    if (HasAuthority())
-//    {
-//        AController* KillerController = LastHitBy;
-//        if (KillerController)
-//        {
-//            AFFPlayerState* KillerPlayerState = KillerController->GetPlayerState<AFFPlayerState>();
-//            if (KillerPlayerState)
-//            {
-//                KillerPlayerState->AddScore(1);
-//            }
-//        }
-//    }
-//}
+void AFFPawn::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
+{
+    if (bWasSuccessful)
+    {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Blue, FString::Printf(TEXT("Created session : %s"), *SessionName.ToString()));
+        }
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            World->ServerTravel("/Game/Book/Maps/LandTest?listen");
+            PrintToScreen(TEXT("Successfully created game as Host"));
+        }
+    }
+
+    // 세선 생성 실패
+    else
+    {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString(TEXT("Failed to create session!")));
+        }
+    }
+}
+
+void AFFPawn::CreateGameSession()
+{
+    // Called when pressing the 1key
+    if (!OnlineSessionInterface.IsValid())
+    {
+        // log
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString(TEXT("Game Session is invailed")));
+        }
+        return;
+    }
+
+    // 이미 세션이 존재한다면 기존 세션을 삭제한다
+    auto ExistingSession = OnlineSessionInterface->GetNamedSession(NAME_GameSession); 
+    if (ExistingSession != nullptr)
+    {
+        OnlineSessionInterface->DestroySession(NAME_GameSession);
+
+        // Log
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Black, FString::Printf(TEXT("Destroy session : %s"), NAME_GameSession)); //두번 누르면 크래시 발생
+        }
+    }
+
+    // 세션 생성 완료 후 호출될 delegate 리스트에 CreateSessionCompleteDelegate 추가
+    OnlineSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
+
+    // 세션 세팅하기
+    TSharedPtr<FOnlineSessionSettings> SessionSettings = MakeShareable(new FOnlineSessionSettings());   
+
+    SessionSettings->bIsLANMatch = false;			// LAN 연결
+    SessionSettings->NumPublicConnections = 4;		// 최대 접속 가능 수
+    SessionSettings->bAllowJoinInProgress = true;	// Session 진행중에 접속 허용
+    SessionSettings->bAllowJoinViaPresence = true;
+    SessionSettings->bShouldAdvertise = true;		// 현재 세션을 광고할지 (스팀의 다른 플레이어에게 세션 홍보 여부)
+    SessionSettings->bUsesPresence = true;			// 현재 지역에 세션 표시
+    SessionSettings->bUseLobbiesIfAvailable = true; // 플랫폼이 지원하는 경우 로비 API 사용
+    SessionSettings->Set(FName("MatchType"), FString("FreeForAll"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing); // 세션의 MatchType을 모두에게 열림, 온라인서비스와 핑을 통해 세션 홍보 옵션으로 설정
+
+    const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+    OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
+}
+
+void AFFPawn::JoinGameSession()
+{
+    // 세션 인터페이스 유효성 검사
+    if (!OnlineSessionInterface.IsValid())
+    {
+        // log
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString(TEXT("Game Session Interface is invailed")));
+        }
+        return;
+    }
+
+    // Find Session Complete Delegate 등록
+    OnlineSessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionCompleteDelegate);
+
+    // Find Game Session
+    SessionSearch = MakeShareable(new FOnlineSessionSearch());
+    SessionSearch->MaxSearchResults = 10000;	// 검색 결과로 나오는 세션 수 최대값
+    SessionSearch->bIsLanQuery = false;			// LAN 사용 여부
+    SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals); // 찾을 세션 쿼리를 현재로 설정한다
+
+    const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+    OnlineSessionInterface->FindSessions(*LocalPlayer->GetPreferredUniqueNetId(), SessionSearch.ToSharedRef());
+}
+
+void AFFPawn::OnFindSessionComplete(bool bWasSuccessful)
+{
+    if (!OnlineSessionInterface.IsValid()
+        || !bWasSuccessful)
+        return;
+
+    if (GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Cyan, FString(TEXT("======== Search Result ========")));
+    }
+
+    for (auto Result : SessionSearch->SearchResults)
+    {
+        FString Id = Result.GetSessionIdStr();
+        FString User = Result.Session.OwningUserName;
+
+        // 매치 타입 확인하기
+        FString MatchType;
+        Result.Session.SessionSettings.Get(FName("MatchType"), MatchType);
+
+        // 찾은 세션의 정보 출력하기
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Cyan, FString::Printf(TEXT("Session ID : %s / Owner : %s"), *Id, *User));
+        }
+
+        // 세션의 매치 타입이 "FreeForAll"일 경우 세션 참가
+        if (MatchType == FString("FreeForAll"))
+        {
+            if (GEngine)
+            {
+                GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Cyan, FString::Printf(TEXT("Joining Match Type : %s"), *MatchType));
+            }
+
+            // Join Session Complete Delegate 등록 
+            OnlineSessionInterface->AddOnJoinSessionCompleteDelegate_Handle(JoinSessionCompleteDelegate);
+
+
+            const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+            OnlineSessionInterface->JoinSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, Result);
+        }
+    }
+}
+
+void AFFPawn::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+{
+    if (!OnlineSessionInterface.IsValid())
+        return;
+
+    // 세션에 조인했다면 IP Address얻어와서 해당 서버에 접속
+    FString Address;
+    if (OnlineSessionInterface->GetResolvedConnectString(NAME_GameSession, Address))
+    {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Yellow, FString::Printf(TEXT("Connect String : %s"), *Address));
+        }
+
+        APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
+        if (PlayerController)
+        {
+            PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
+            PrintToScreen(TEXT("ClientTravel Success!!"));
+        }
+        else
+        {
+            PrintToScreen(TEXT("Failed to Join Session"));
+        }
+    }
+    else
+    {
+        PrintToScreen(TEXT("Failed to get connect string"));
+    }
+}
+
+void AFFPawn::PrintToScreen(const FString& Message)
+{
+    if (GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Yellow, Message);
+    }
+}

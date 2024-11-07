@@ -11,12 +11,12 @@
 #include "TimerManager.h"
 #include "FFPlayerController.h"
 #include "FFGameMode.h"
-#include "FFPlayerState.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/WidgetComponent.h"
 #include "FFHPBarWidget.h"
 #include "FFHUDWidget.h"
 #include "Net/UnrealNetwork.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "FFPawn.generated.h"
 
 DECLARE_MULTICAST_DELEGATE(FOnHPIsZeroDelegate)
@@ -42,11 +42,32 @@ public:
 	// 네트워크 관련성 오버라이드
 	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override; 
 
-	//void AddScore();
+	/*void CallOpenLevel(const FString& Address);
+	void CallClientTravel(const FString& Address);
+
+	void OpenLobby();*/
+
+	void CreateGameSession();
+	void JoinGameSession();
+
+	TSharedPtr<FOnlineSessionSearch> SessionSearch;
+
+	void PrintToScreen(const FString& Message);
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+
+	IOnlineSessionPtr OnlineSessionInterface;
+
+	FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
+	void OnCreateSessionComplete(FName SessionName, bool bWasSuccessful);
+
+	FOnFindSessionsCompleteDelegate FindSessionCompleteDelegate;
+	void OnFindSessionComplete(bool bWasSuccessful);
+
+	FOnJoinSessionCompleteDelegate JoinSessionCompleteDelegate;
+	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 
 public:	
 	// Called every frame
@@ -247,7 +268,6 @@ private:
 
 	FRotator LastRotation;
 
-	//bool bRotationInitialized;
-	//FRotator DesiredRotation;
+	//FString PathToLevel{ TEXT("/Game/Book/Maps/LandTest.LandTest?listen") };
 
 };
