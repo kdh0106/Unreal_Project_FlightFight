@@ -12,17 +12,6 @@ void UFFHUDWidget::NativeConstruct()
 	CurrentScore = Cast<UTextBlock>(GetWidgetFromName(TEXT("textCurrentScore")));
 	HighScore = Cast<UTextBlock>(GetWidgetFromName(TEXT("textHighScore")));
 }
-//void UFFHUDWidget::UpdateHUDWidget(int32 CurrentGameScore, int32 HighGameScore)	
-//{
-//	if (CurrentScore)
-//	{
-//		CurrentScore->SetText(FText::FromString(FString::FromInt(CurrentGameScore)));
-//	}
-//	if (HighScore)
-//	{
-//		HighScore->SetText(FText::FromString(FString::FromInt(HighGameScore))); 
-//	}
-//}
 
 void UFFHUDWidget::UpdateScore(int32 NewScore)
 {

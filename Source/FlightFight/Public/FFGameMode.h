@@ -29,7 +29,6 @@ public:
 
 	void HostServer();
 	void JoinServer(const FString& IPAddress);
-	void PawnKilled(AController* KillController, AController* KilledController);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
 	TSubclassOf<class UFFHUDWidget> HUDWidgetClass;

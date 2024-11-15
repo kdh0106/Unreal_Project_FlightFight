@@ -514,7 +514,7 @@ void AFFPawn::SpawnDeathEffect()
             {  
                 Movement->SetActive(false); //기존의 움직임을 멈춤
             }
-            DisableInput(FFPlayerController); //아무 입력도 받지 못하도록
+            DisableInput(FFPlayerController); //아무 입력도 받지 못하도록 
 
             GetWorld()->GetTimerManager().SetTimer(RespawnTimerHandle, this, &AFFPawn::RespawnActor, 5.0f, false); 
         }
@@ -703,29 +703,6 @@ void AFFPawn::DeactivateTrailFX()
     }
 }
 
-//void AFFPawn::CallOpenLevel(const FString& Address)
-//{ 
-//    UGameplayStatics::OpenLevel(this, *Address);
-//}
-//
-//void AFFPawn::CallClientTravel(const FString& Address)
-//{
-//    APlayerController* PlayerController = GetGameInstance()->GetFirstLocalPlayerController();
-//    if (PlayerController)
-//    {
-//        PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
-//    }
-//}
-//
-//void AFFPawn::OpenLobby()
-//{
-//    UWorld* World = GetWorld();
-//    if (World)
-//    {
-//        World->ServerTravel("/Game/Book/Maps/LandTest.LandTest?listen");
-//    }
-//}
-
 void AFFPawn::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
 {
     if (bWasSuccessful)
@@ -834,6 +811,21 @@ void AFFPawn::OnFindSessionComplete(bool bWasSuccessful)
         GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Cyan, FString(TEXT("======== Search Result ========")));
     }
 
+    if (SessionSearch->SearchResults.Num() == 0)
+    {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, TEXT("Can't find the Session!"));
+        }
+    }
+    else
+    {
+        if (GEngine)
+        {
+            GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, TEXT("Find the Session! Entering..."));
+        }
+    }
+
     for (auto Result : SessionSearch->SearchResults)
     {
         FString Id = Result.GetSessionIdStr();
@@ -847,8 +839,8 @@ void AFFPawn::OnFindSessionComplete(bool bWasSuccessful)
         if (GEngine)
         {
             GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Cyan, FString::Printf(TEXT("Session ID : %s / Owner : %s"), *Id, *User));
-        }
-
+        }   
+            
         // 세션의 매치 타입이 "FreeForAll"일 경우 세션 참가
         if (MatchType == FString("FreeForAll"))
         {
@@ -903,5 +895,125 @@ void AFFPawn::PrintToScreen(const FString& Message)
     if (GEngine)
     {
         GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Yellow, Message);
+    }  
+}
+  
+void AFFPawn::LeaveGameSession()
+{
+    APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+
+    if (OnlineSessionInterface.IsValid())
+    {
+        PrintToScreen(TEXT("Leaving Session..."));
+        OnlineSessionInterface->OnDestroySessionCompleteDelegates.AddUObject(this, &AFFPawn::OnDestroySessionComplete);
+        //세션 종료가 실패했을 때
+        if (!OnlineSessionInterface->DestroySession(NAME_GameSession))
+        {
+            PrintToScreen(TEXT("Failed to destroy Session")); 
+            if (PlayerController)
+            {
+                PlayerController->ClientTravel(LobbyMapPath, ETravelType::TRAVEL_Absolute);
+            }
+        }
+    }
+    else  //세션 인터페이스가 유효하지 않을 때
+    {
+        if (PlayerController)
+        {
+            PrintToScreen(TEXT("No session Interface, directly go to lobby"));
+            PlayerController->ClientTravel(LobbyMapPath, ETravelType::TRAVEL_Absolute);
+        }
+    } 
+}
+
+void AFFPawn::OnDestroySessionComplete(FName SessionName, bool bWasSuccessful)
+{
+    if (bWasSuccessful)  //세션이 정상적으로 종료되었는지
+    {
+        PrintToScreen(TEXT("Session Destroyed Successfully"));
+        APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+
+        UWorld* World = GetWorld();
+        if (World)
+        {
+            if (PlayerController && PlayerController->HasAuthority())
+            {
+                // 일정 시간 딜레이 후 ServerTravel 호출
+                FTimerHandle TimerHandle;
+                World->GetTimerManager().SetTimer(TimerHandle, [World, this]()
+                    {
+                        if (World)
+                        {
+                            World->ServerTravel("/Game/Book/Maps/NewMap1?listen", true);  ///뒤에 true를 붙여주지 않으면 안됨 / 지연을 해주지 않으면 안됨. / listen을 붙여주지 않으면 안됨 -> 리슨 서버 상태를 유지하며 맵 이동 /
+                                                                                          /// 약간의 지연을 주어 세션 정리 시간을 확보하기 위함 
+                            PrintToScreen(TEXT("ServerTravel Successsssss!"));            /// 그냥 레퍼런스 복사하면 NewMap1.NewMap1 으로 경로 나오는데, 바로 뒤에 ?listen 붙이지 말고
+                        }                                                                 /// NewMap1.NewMap1?listen --> X  NewMap1?listen --> O
+                    }, 0.5f, false);  // 0.5초 지연 추가
+            }
+            else
+            {
+                if (PlayerController)
+                {
+                    PlayerController->ClientTravel(LobbyMapPath, ETravelType::TRAVEL_Absolute);
+                    PrintToScreen(TEXT("ClientTravel Successsssss!"));
+                }
+            }
+        }
+    }
+    else
+    {
+        PrintToScreen(TEXT("Failed to Destroy Session"));
+        APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();   
+        if (PlayerController)
+        {
+            PlayerController->ClientTravel(LobbyMapPath, ETravelType::TRAVEL_Absolute);
+        }
     }
 }
+
+//void AFFPawn::Server_LeaveGameSession_Implementation()
+//{
+//    if (!HasAuthority()) return;
+//
+//    UWorld* World = GetWorld();
+//    AGameModeBase* GameMode = World ? World->GetAuthGameMode() : nullptr;
+//
+//    if (GameMode && OnlineSessionInterface.IsValid())
+//    {
+//        PrintToScreen(TEXT("Server destroying session..."));
+//
+//        // 모든 플레이어의 연결을 끊습니다
+//        for (FConstPlayerControllerIterator It = World->GetPlayerControllerIterator(); It; ++It)
+//        {
+//            APlayerController* PC = It->Get();
+//            if (PC && PC != World->GetFirstPlayerController()) // 호스트 제외
+//            {
+//                PC->ClientTravel(LobbyMapPath, ETravelType::TRAVEL_Absolute);
+//            }
+//        }
+//
+//        // 세션 종료 후 서버 이동을 위한 딜레이 설정
+//        OnlineSessionInterface->OnDestroySessionCompleteDelegates.AddUObject(
+//            this, &AFFPawn::OnDestroySessionComplete);
+//
+//        if (!OnlineSessionInterface->DestroySession(FName("Game Session")))
+//        {
+//            PrintToScreen(TEXT("Server failed to destroy session"));
+//            // 실패 시 직접 이동
+//            if (World)
+//            {
+//                World->ServerTravel(LobbyMapPath);
+//            }
+//        }
+//    }
+//    else
+//    {
+//        // 세션 인터페이스가 없는 경우 직접 이동
+//        if (World)
+//        {
+//            World->ServerTravel(LobbyMapPath);
+//        }
+//    }
+//}
+
+

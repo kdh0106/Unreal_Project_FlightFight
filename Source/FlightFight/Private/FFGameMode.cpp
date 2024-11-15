@@ -234,15 +234,3 @@ void AFFGameMode::JoinServer(const FString& IPAddress)
 		SessionInterface->JoinServerByIP(IPAddress);
 	}
 }
-
-//void AFFGameMode::PawnKilled(AController* KillerController, AController* KilledController)
-//{
-//	if (KillerController && KillerController != KilledController)
-//	{
-//		AFFPlayerState* KillerPlayerState = KillerController->GetPlayerState<AFFPlayerState>();
-//		if (KillerPlayerState)
-//		{
-//			KillerPlayerState->AddScore(1);
-//		}
-//	}
-//}

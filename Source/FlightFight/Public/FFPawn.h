@@ -42,13 +42,12 @@ public:
 	// 네트워크 관련성 오버라이드
 	virtual bool IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const override; 
 
-	/*void CallOpenLevel(const FString& Address);
-	void CallClientTravel(const FString& Address);
-
-	void OpenLobby();*/
-
 	void CreateGameSession();
 	void JoinGameSession();
+	void LeaveGameSession();
+
+	//UFUNCTION(Server, Reliable)
+	//void Server_LeaveGameSession();
 
 	TSharedPtr<FOnlineSessionSearch> SessionSearch;
 
@@ -68,6 +67,13 @@ protected:
 
 	FOnJoinSessionCompleteDelegate JoinSessionCompleteDelegate;
 	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
+
+	void OnDestroySessionComplete(FName SessionName, bool bWasSuccessful);
+
+	UPROPERTY(EditDefaultsOnly)
+	FString LobbyMapPath = "/Game/Book/Maps/NewMap1.NewMap1";
+
+	//FTimerHandle TimerHandle_DelayTravel;
 
 public:	
 	// Called every frame
@@ -236,17 +242,7 @@ private:
 
 	UFUNCTION()
 	void OnRep_CurrentHP();
-
-	/*UPROPERTY(EditAnywhere, Category = "Stats", Meta = (AllowPrivateAccess = true))
-	int32 HighScore;
-
 	
-
-	UFUNCTION()
-	void OnRep_CurrentScore();*/
-
-	
-
 	UPROPERTY(EditAnywhere, Category = "Effects")
 	UParticleSystem* DeathParticleSystem;
 
@@ -267,7 +263,4 @@ private:
 	FRotator ReplicatedRotation;
 
 	FRotator LastRotation;
-
-	//FString PathToLevel{ TEXT("/Game/Book/Maps/LandTest.LandTest?listen") };
-
 };

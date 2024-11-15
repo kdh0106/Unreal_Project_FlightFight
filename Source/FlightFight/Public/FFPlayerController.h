@@ -4,6 +4,7 @@
 
 #include "FlightFight.h"
 #include "FFHUDWidget.h"
+#include "FFEndWidget.h"
 #include "GameFramework/PlayerController.h"
 #include "FFPlayerController.generated.h"
 
@@ -27,6 +28,9 @@ public:
 	UPROPERTY()
 	class UFFHUDWidget* HUDWidget;
 
+	UPROPERTY()
+	class UFFEndWidget* EndWidget;
+
 	UFUNCTION(Client, Reliable)
 	void Client_CreateHUD();
 
@@ -39,15 +43,15 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_NotifyScoreAdd();
 
-	/*UFUNCTION(Client, Reliable)
-	void CreateHUDWidget();*/
+	UFUNCTION(Client, Reliable)
+	void Client_OnGameEnd(bool bIsWinner);
+
+	UFUNCTION(Client, Reliable)
+	void Client_DisableInput();
 	
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnPossess(APawn* InPawn) override;
 
-	/*UPROPERTY()
-	class UFFHUDWidget* HUDWidget;  */
-
-private:
+	bool bIsGameOver;
 };
