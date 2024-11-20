@@ -31,14 +31,18 @@ public:
 	UPROPERTY()
 	class UFFEndWidget* EndWidget;
 
+	UPROPERTY()
+	class UFFTitleWidget* TitleWidget;
+
+	UFUNCTION(Client, Reliable)
+	void Client_CreateTitle();
+
 	UFUNCTION(Client, Reliable)
 	void Client_CreateHUD();
 
 	void UpdateScoreDisplay();
 
 	void AddScore();
-
-	void NotifyEnemyKilled();
 
 	UFUNCTION(Client, Reliable)
 	void Client_NotifyScoreAdd();

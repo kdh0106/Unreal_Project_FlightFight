@@ -3,7 +3,6 @@
 
 #include "FFHUDWidget.h"
 #include "Components/TextBlock.h"
-#include "FFPlayerState.h"
 
 void UFFHUDWidget::NativeConstruct()
 {

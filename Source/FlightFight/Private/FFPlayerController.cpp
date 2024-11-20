@@ -7,7 +7,8 @@
 #include "FFHUDWidget.h"
 #include "FFEndWidget.h"
 #include "FFPawn.h"
-#include "FFPlayerState.h"
+#include "FFTitleWidget.h"
+#include "FFGameInstance.h"
 #include "Kismet/GameplayStatics.h"
 
 AFFPlayerController::AFFPlayerController()
@@ -19,8 +20,7 @@ AFFPlayerController::AFFPlayerController()
 void AFFPlayerController::BeginPlay()
 { 
 	Super::BeginPlay();
-	 
-	FInputModeGameOnly InputMode;	
+	FInputModeGameOnly InputMode;
 	SetInputMode(InputMode);
 
 	PlayerCameraManager->ViewPitchMax = 179.99f;
@@ -30,14 +30,67 @@ void AFFPlayerController::BeginPlay()
 	
 	CurrentScore = 0;
 
-	if (IsLocalPlayerController())
+	UFFGameInstance* MyGameInstance = Cast<UFFGameInstance>(GetGameInstance());
+
+	if (IsLocalPlayerController()) //클라이언트들의 PlayerController 복사본이 아닌, 자신의 것만 / 독립적인 점수 관리
 	{
-		Client_CreateHUD();
-	} 
+		if (MyGameInstance)
+		{
+			if (!MyGameInstance->bIsTitleWidgetDisplayed)
+			{
+				bShowMouseCursor = true;
+				SetInputMode(FInputModeUIOnly());
+				Client_CreateTitle();
+				MyGameInstance->bIsTitleWidgetDisplayed = true;
+				if (GEngine)
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString(TEXT("Beginplay in Controller active!!!!!")));
+				}
+			}
+			else
+			{
+				Client_CreateHUD();
+			}
+		}
+		
+	}
+
+	//if (IsLocalPlayerController() && MyGameInstance && !MyGameInstance->bIsTitleWidgetDisplayed) //클라이언트들의 PlayerController 복사본이 아닌, 자신의 것만 / 독립적인 점수 관리
+	//{
+	//	bShowMouseCursor = true;
+	//	SetInputMode(FInputModeUIOnly());
+	//	Client_CreateTitle();
+	//	MyGameInstance->bIsTitleWidgetDisplayed = true;
+	//	//bIsTitleDisplayed = true;
+	//	if (GEngine)
+	//	{
+	//		GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Red, FString(TEXT("Beginplay in Controller active!!!!!")));
+	//	}
+	//	//Client_CreateHUD();
+	//} 
 }
 
-void AFFPlayerController::Client_CreateHUD_Implementation()
-{	
+void AFFPlayerController::Client_CreateTitle_Implementation()
+{
+	if (IsLocalPlayerController())
+	{
+		if (!TitleWidget)
+		{
+			TSubclassOf<UFFTitleWidget> TitleWidgetClass = LoadClass<UFFTitleWidget>(nullptr, TEXT("/Game/Book/UI/UI_Title.UI_Title_C"));
+			if (TitleWidgetClass)
+			{
+				TitleWidget = CreateWidget<UFFTitleWidget>(this, TitleWidgetClass);
+				if (TitleWidget)
+				{
+					TitleWidget->AddToViewport();
+				}
+			}
+		}
+	}
+}
+
+void AFFPlayerController::Client_CreateHUD_Implementation()	
+{
 	if (IsLocalPlayerController())
 	{
 		if (!HUDWidget)
@@ -68,7 +121,7 @@ void AFFPlayerController::AddScore()
 {
 	CurrentScore++;
 	UpdateScoreDisplay();
-	if (CurrentScore >= 2)
+	if (CurrentScore >= 5)
 	{
 		bIsGameOver = true;
 		Client_OnGameEnd(true);
@@ -84,15 +137,6 @@ void AFFPlayerController::AddScore()
 		}
 	}
 }
-
-void AFFPlayerController::NotifyEnemyKilled()
-{
-	if (IsLocalPlayerController())
-	{
-		AddScore();
-	}
-	//ABLOG(Warning, TEXT("%d is CurrentScore, %s is playercontroller"), CurrentScore, *this->GetName());	
-} 
 
 void AFFPlayerController::OnPossess(APawn* InPawn)
 {

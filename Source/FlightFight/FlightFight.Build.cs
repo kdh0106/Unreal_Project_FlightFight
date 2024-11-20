@@ -9,9 +9,9 @@ public class FlightFight : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "UMG", "Niagara", "HeadMountedDisplay", "EnhancedInput", "OnlineSubsystemSteam", "OnlineSubsystem", "SlateCore", "Slate" });
+		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "UMG", "Niagara", "HeadMountedDisplay", 
+			"EnhancedInput", "OnlineSubsystemSteam", "OnlineSubsystem", "SlateCore", "Slate" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
 	}
 }
-

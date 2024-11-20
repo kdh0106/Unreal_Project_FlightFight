@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+ // Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "FFPawn.h"
@@ -175,7 +175,7 @@ AFFPawn::AFFPawn()
         {
             GEngine->AddOnScreenDebugMessage(-1, 15.f, FColor::Blue, FString::Printf(TEXT("Found subsystem %s"), *OnlineSubsystem->GetSubsystemName().ToString()));
         }
-    }
+    }   
 }
   
 // Called when the game starts or when spawned 
@@ -191,28 +191,8 @@ void AFFPawn::BeginPlay()
             CrosshairWidget->AddToViewport();
         }
     }
-
-    /*if (IsValid(ScoreWidgetClass))
-    {
-        ScoreTextWidget = Cast<UUserWidget>(CreateWidget(GetWorld(), ScoreWidgetClass));
-        if (IsValid(ScoreTextWidget))
-        {
-            ScoreTextWidget->AddToViewport();
-        }
-    }*/
-
     
-    UpdateHPBar();
-    
-    /*CurrentScore = 0;
-    if (AFFPlayerController* PC = Cast<AFFPlayerController>(Controller))
-    {
-        PC->UpdateScoreDisplay();
-    }*/
-
-    //SpawnLocation = GetActorLocation(); // FVector(4704.808635f, 4434.708254f, 432.5002f); AssignPlayerStart실험(밑에도)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    //SpawnRotation = GetActorRotation(); // FRotator(0.0f, 45.0f, 0.0f);
-    //SetActorLocation(SpawnLocation);  //Box의 Z축 크기만큼 Mesh에서 -값을 해줘야 한다.  / 0, 0, 320
+    UpdateHPBar();  
 
     if (ThrusterEffect_Left && ThrusterEffect_Right)
     {
@@ -289,7 +269,7 @@ void AFFPawn::Tick(float DeltaTime)
 void AFFPawn::PossessedBy(AController* NewController)
 {
     Super::PossessedBy(NewController);
-    SetActorRotation(FRotator(0.0f, -120.0f, 0.0f)); //리스폰 될 때 사망시의 Rotation을 가지고 태어나는 버그 이걸로 고쳐버림
+    SetActorRotation(FRotator(0.0f, -120.0f, 0.0f)); //리스폰 될 때 사망시의 Rotation을 가지고 태어나는 버그 수정.
 }
 
 void AFFPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -521,7 +501,7 @@ void AFFPawn::SpawnDeathEffect()
     }
 }
 
-void AFFPawn::RespawnActor()  //Destroy로 구현하려다가 Hidden을 선택함. 
+void AFFPawn::RespawnActor()  
 {
     AGameModeBase* GameMode = GetWorld()->GetAuthGameMode();
     if (GameMode)
@@ -552,7 +532,7 @@ void AFFPawn::OnRep_CurrentHP()
 
 void AFFPawn::ServerTakeDamage_Implementation(float Damage, AController* InstigatorController)
 {
-    if (GetLocalRole() == ROLE_Authority) 
+    if (GetLocalRole() == ROLE_Authority) //이 함수는 서버에서만 실행되어야함
     {
         float NewHP = FMath::Max(CurrentHP - Damage, 0.0f);
         SetHP(NewHP);
@@ -560,24 +540,14 @@ void AFFPawn::ServerTakeDamage_Implementation(float Damage, AController* Instiga
         {
             OnHPIsZero.Broadcast();
             AFFPlayerController* ServerKillerPC = Cast<AFFPlayerController>(InstigatorController);
-            if (ServerKillerPC && ServerKillerPC->IsLocalPlayerController())
+            if (ServerKillerPC && ServerKillerPC->IsLocalPlayerController()) //서버 플레이어
             {
                 ServerKillerPC->AddScore();
             }
-            if (ServerKillerPC && !ServerKillerPC->IsLocalPlayerController())
+            if (ServerKillerPC && !ServerKillerPC->IsLocalPlayerController()) //클라이언트 플레이어
             {
                 ServerKillerPC->Client_NotifyScoreAdd();
             }
-
-            //if (InstigatorController)
-            //{
-            //    AFFPlayerController* KillerController = Cast<AFFPlayerController>(InstigatorController);
-            //    if (KillerController)
-            //    {
-            //        KillerController->NotifyEnemyKilled();
-            //        //여기까진 Client에서도 호출됨
-            //    }
-            //}
         }
     }
 }
@@ -764,17 +734,17 @@ void AFFPawn::CreateGameSession()
     SessionSettings->bIsLANMatch = false;			// LAN 연결
     SessionSettings->NumPublicConnections = 4;		// 최대 접속 가능 수
     SessionSettings->bAllowJoinInProgress = true;	// Session 진행중에 접속 허용
-    SessionSettings->bAllowJoinViaPresence = true;
+    SessionSettings->bAllowJoinViaPresence = true; 
     SessionSettings->bShouldAdvertise = true;		// 현재 세션을 광고할지 (스팀의 다른 플레이어에게 세션 홍보 여부)
     SessionSettings->bUsesPresence = true;			// 현재 지역에 세션 표시
     SessionSettings->bUseLobbiesIfAvailable = true; // 플랫폼이 지원하는 경우 로비 API 사용
     SessionSettings->Set(FName("MatchType"), FString("FreeForAll"), EOnlineDataAdvertisementType::ViaOnlineServiceAndPing); // 세션의 MatchType을 모두에게 열림, 온라인서비스와 핑을 통해 세션 홍보 옵션으로 설정
 
-    const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+    const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController(); 
     OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);
 }
 
-void AFFPawn::JoinGameSession()
+void AFFPawn::JoinGameSession()   //이걸 Join이 아니라 Find로 바꿔야할듯?????????????????????????????????????????
 {
     // 세션 인터페이스 유효성 검사
     if (!OnlineSessionInterface.IsValid())
@@ -787,7 +757,7 @@ void AFFPawn::JoinGameSession()
         return;
     }
 
-    // Find Session Complete Delegate 등록
+    // Find Session Complete Delegate 등록 
     OnlineSessionInterface->AddOnFindSessionsCompleteDelegate_Handle(FindSessionCompleteDelegate);
 
     // Find Game Session
@@ -879,14 +849,6 @@ void AFFPawn::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteRes
             PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
             PrintToScreen(TEXT("ClientTravel Success!!"));
         }
-        else
-        {
-            PrintToScreen(TEXT("Failed to Join Session"));
-        }
-    }
-    else
-    {
-        PrintToScreen(TEXT("Failed to get connect string"));
     }
 }
 

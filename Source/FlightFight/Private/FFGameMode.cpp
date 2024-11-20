@@ -6,12 +6,9 @@
 #include "FFPawn.h"
 #include "FlightFight.h"
 #include "FFPlayerController.h"
-#include "FFPlayerState.h"
-#include "FFHUD.h"
 #include "Kismet/GameplayStatics.h"
-#include "FFPlayerState.h"
-#include "FFSessionInterface.h"
 #include "UObject/ConstructorHelpers.h"
+#include "FFTitleWidget.h"
 
 AFFGameMode::AFFGameMode()
 {
@@ -36,7 +33,6 @@ AFFGameMode::AFFGameMode()
 void AFFGameMode::BeginPlay()
 {
 	Super::BeginPlay();	
-
 }
 
 void AFFGameMode::InitializePlayerStarts()
@@ -52,6 +48,7 @@ void AFFGameMode::InitializePlayerStarts()
 		}
 	}
 
+	//랜덤으로 Spawn되는걸 방지
 	PlayerStarts.Sort([](const APlayerStart& A, const APlayerStart& B) {
 		return A.GetName() < B.GetName();
 		});
@@ -62,16 +59,6 @@ void AFFGameMode::PostLogin(APlayerController* NewPlayer)
 	Super::PostLogin(NewPlayer);
 	ChoosePlayerStart(NewPlayer);
 	LogPlayerStarts();
-
-	/*if (NewPlayer)
-	{
-		AFFHUD* GameHUD = Cast<AFFHUD>(NewPlayer->GetHUD());
-		if (GameHUD)
-		{
-			ABLOG(Warning, TEXT("CAS in GameMode!@#!@$!@#!"));
-			GameHUD->CreateAndShowWidget();
-		}
-	}*/
 }
 
 int32 AFFGameMode::GetPlayerIndex(AController* Player) const
@@ -155,20 +142,11 @@ void AFFGameMode::RestartPlayer(AController* NewPlayer)
 	{
 		NewPawn->SetActorLocationAndRotation(SpawnTransform.GetLocation(), SpawnTransform.GetRotation());
 
-		// 로그 추가: 스폰된 Pawn 정보
-		//ABLOG(Warning, TEXT("RestartPlayer: Spawned Pawn Location: %s, Rotation: %s"),
-		//	*NewPawn->GetActorLocation().ToString(), *NewPawn->GetActorRotation().ToString());
-
-
 		NewPlayer->Possess(NewPawn);
 		if (APlayerController* PC = Cast<APlayerController>(NewPlayer))
 		{
 			PC->SetInitialLocationAndRotation(SpawnTransform.GetLocation(), SpawnTransform.GetRotation().Rotator());
 			PC->SetControlRotation(SpawnTransform.GetRotation().Rotator()); 
-
-			// 로그 추가: PlayerController 정보
-		//	ABLOG(Warning, TEXT("RestartPlayer: PlayerController Location: %s, ControlRotation: %s"),
-		//		*PC->GetPawn()->GetActorLocation().ToString(), *PC->GetControlRotation().ToString());
 		}
 	}
 }
@@ -216,21 +194,3 @@ void AFFGameMode::LogPlayerStarts()
 		APlayerStart* PlayerStart = *It;
 	}
 } 
-
-void AFFGameMode::HostServer()
-{
-	UFFSessionInterface* SessionInterface = GetGameInstance()->GetSubsystem<UFFSessionInterface>();
-	if (SessionInterface) 
-	{
-		SessionInterface->HostListenServer();
-	}
-}
-
-void AFFGameMode::JoinServer(const FString& IPAddress)
-{
-	UFFSessionInterface* SessionInterface = GetGameInstance()->GetSubsystem<UFFSessionInterface>();
-	if (SessionInterface)
-	{
-		SessionInterface->JoinServerByIP(IPAddress);
-	}
-}
